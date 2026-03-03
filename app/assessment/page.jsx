@@ -16,12 +16,14 @@ const questions = [
 export default function Assessment() {
   const [current, setCurrent] = useState(0)
   const [answers, setAnswers] = useState({})
-  const [stage, setStage] = useState('intro') // intro, questions, loading, result
+  const [stage, setStage] = useState('intro')
   const [result, setResult] = useState(null)
   const [user, setUser] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    if (supabase) {
+      supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    }
   }, [])
 
   const selectOption = (i) => setAnswers({...answers, [current]: i})
@@ -41,7 +43,7 @@ export default function Assessment() {
     const total = Math.round(((dim.exhaustion+dim.cognitive+dim.worth+dim.recovery)/24)*100)
     const key = total<=20?'stable':total<=42?'early':total<=67?'depleted':'severe'
 
-    if (user) {
+    if (user && supabase) {
       await supabase.from('users_progress').insert({
         user_id: user.id,
         exhaustion_score: dim.exhaustion,
@@ -111,7 +113,7 @@ export default function Assessment() {
 
   if (stage === 'loading') return (
     <div style={{minHeight:'100vh', background:'#F5F0E8', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:'sans-serif'}}>
-      <div style={{width:'72px', height:'72px', borderRadius:'50%', background:'radial-gradient(circle at 35% 35%, #C4A882, #C9948A)', marginBottom:'28px', animation:'pulse 1.4s ease-in-out infinite'}}></div>
+      <div style={{width:'72px', height:'72px', borderRadius:'50%', background:'radial-gradient(circle at 35% 35%, #C4A882, #C9948A)', marginBottom:'28px'}}></div>
       <p style={{fontFamily:'Georgia', fontSize:'1.3rem', fontStyle:'italic', color:'#6B4F3A'}}>Reading your responses...</p>
     </div>
   )
@@ -128,7 +130,6 @@ export default function Assessment() {
             <h2 style={{fontFamily:'Georgia', fontSize:'2.2rem', color:'#6B4F3A', marginBottom:'16px', lineHeight:'1.2'}}>{r.title}</h2>
             <p style={{color:'#5C4A38', lineHeight:'1.9', maxWidth:'520px', margin:'0 auto'}}>{r.desc}</p>
           </div>
-
           <div style={{background:'white', borderRadius:'24px', padding:'36px', marginBottom:'24px', border:'1px solid rgba(196,168,130,0.18)'}}>
             <p style={{fontFamily:'Georgia', fontStyle:'italic', color:'#6B4F3A', marginBottom:'24px'}}>Your burnout dimensions</p>
             {[['Study & Exam Exhaustion', result.dim.exhaustion, '#C9948A'],['Mental & Cognitive Fatigue', result.dim.cognitive, '#C4A882'],['Self-Worth vs Performance', result.dim.worth, '#8A9E85'],['Recovery Capacity', result.dim.recovery, '#6B4F3A']].map(([label, score, color]) => (
@@ -137,12 +138,11 @@ export default function Assessment() {
                   <span>{label}</span><span style={{fontWeight:'500', color:'#6B4F3A'}}>{pct(score)}%</span>
                 </div>
                 <div style={{height:'7px', background:'rgba(196,168,130,0.18)', borderRadius:'100px', overflow:'hidden'}}>
-                  <div style={{height:'100%', width:`${pct(score)}%`, background:color, borderRadius:'100px', transition:'width 1s'}}></div>
+                  <div style={{height:'100%', width:`${pct(score)}%`, background:color, borderRadius:'100px'}}></div>
                 </div>
               </div>
             ))}
           </div>
-
           <div style={{display:'flex', gap:'14px', flexWrap:'wrap'}}>
             <a href="/recovery" style={{background:'#6B4F3A', color:'white', padding:'15px 34px', borderRadius:'100px', textDecoration:'none', fontSize:'0.9rem'}}>See Recovery Program →</a>
             <a href="/dashboard" style={{background:'transparent', color:'#5C4A38', padding:'15px 34px', border:'1px solid rgba(196,168,130,0.4)', borderRadius:'100px', textDecoration:'none', fontSize:'0.9rem'}}>View Dashboard</a>
@@ -152,3 +152,10 @@ export default function Assessment() {
     )
   }
 }
+```
+
+Save both files then run:
+```
+git add .
+git commit -m "fix supabase build error"
+git push
