@@ -154,8 +154,8 @@ export default function Assessment() {
 }
 ```
 
-Save both files then run:
+Save, then:
 ```
 git add .
-git commit -m "fix supabase build error"
+git commit -m "fix assessment page"
 git push
