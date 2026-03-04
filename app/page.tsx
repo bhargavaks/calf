@@ -108,10 +108,3 @@ export default function Home() {
     </div>
   )
 }
-```
-
-Save it then run:
-```
-git add .
-git commit -m "add homepage"
-git push
