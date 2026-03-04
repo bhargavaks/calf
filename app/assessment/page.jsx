@@ -152,10 +152,3 @@ export default function Assessment() {
     )
   }
 }
-```
-
-Save, then:
-```
-git add .
-git commit -m "fix assessment page"
-git push
