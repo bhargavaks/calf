@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function Auth() {
@@ -8,11 +8,17 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [cursorPos, setCursorPos] = useState({ x: -200, y: -200 })
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => setCursorPos({ x: e.clientX, y: e.clientY })
+    window.addEventListener('mousemove', move)
+    return () => window.removeEventListener('mousemove', move)
+  }, [])
 
   const handleAuth = async () => {
     setLoading(true)
     setMessage('')
-
     if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
@@ -25,38 +31,139 @@ export default function Auth() {
     setLoading(false)
   }
 
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleAuth()
+  }
+
   return (
-    <div style={{minHeight:'100vh', background:'#F5F0E8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'sans-serif'}}>
-      <div style={{background:'white', padding:'48px', borderRadius:'24px', width:'100%', maxWidth:'420px', boxShadow:'0 20px 60px rgba(0,0,0,0.08)'}}>
-        <h1 style={{fontFamily:'Georgia', fontSize:'2rem', color:'#6B4F3A', marginBottom:'8px'}}>{isLogin ? 'Welcome back' : 'Join Calf'}</h1>
-        <p style={{color:'#9C8878', fontSize:'0.9rem', marginBottom:'32px'}}>{isLogin ? 'Sign in to continue your recovery.' : 'Start your journey back to yourself.'}</p>
-        
-        <input
-          type="email" placeholder="Email"
-          value={email} onChange={e => setEmail(e.target.value)}
-          style={{width:'100%', padding:'14px', border:'1px solid #E8E0D5', borderRadius:'12px', marginBottom:'12px', fontSize:'0.95rem', outline:'none'}}
-        />
-        <input
-          type="password" placeholder="Password"
-          value={password} onChange={e => setPassword(e.target.value)}
-          style={{width:'100%', padding:'14px', border:'1px solid #E8E0D5', borderRadius:'12px', marginBottom:'24px', fontSize:'0.95rem', outline:'none'}}
-        />
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Syne:wght@400;500;600&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+          --bg: #F5F0E8; --bg2: #EDE8DC;
+          --border: rgba(90,110,85,0.14); --ink: #2E3528;
+          --muted: rgba(46,53,40,0.5); --green: #4A8A5A; --terracotta: #B5654A;
+        }
+        html, body { height: 100%; }
+        body { background: var(--bg); font-family: 'Syne', sans-serif; cursor: none; overflow-x: hidden; }
+        .cursor { position: fixed; width: 9px; height: 9px; background: var(--green); border-radius: 50%; pointer-events: none; z-index: 9999; }
+        .cursor-ring { position: fixed; width: 34px; height: 34px; border: 1.5px solid rgba(74,138,90,0.4); border-radius: 50%; pointer-events: none; z-index: 9998; transition: left 0.1s ease, top 0.1s ease; }
+        body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: 0.025; pointer-events: none; z-index: 9997; }
+        .auth-wrap { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+        .auth-left { background: var(--bg2); padding: 3rem; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; border-right: 1px solid var(--border); }
+        .orb { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; animation: orbFloat 14s ease-in-out infinite; }
+        .orb1 { width: 400px; height: 400px; background: rgba(122,158,124,0.2); top: -100px; left: -100px; }
+        .orb2 { width: 300px; height: 300px; background: rgba(200,149,106,0.15); bottom: -80px; right: -80px; animation-delay: -6s; }
+        .left-logo { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; font-style: italic; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; z-index: 1; }
+        .left-logo span { color: var(--green); }
+        .left-content { z-index: 1; }
+        .left-quote { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 3vw, 2.8rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; color: var(--ink); margin-bottom: 1.2rem; }
+        .left-quote em { font-style: italic; color: var(--green); }
+        .left-sub { font-size: 0.95rem; color: var(--muted); line-height: 1.75; max-width: 360px; }
+        .left-footer { font-size: 0.75rem; color: var(--muted); z-index: 1; }
+        .auth-right { display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+        .auth-card { width: 100%; max-width: 400px; animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+        .auth-card-tag { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); border: 1.5px solid rgba(74,138,90,0.25); border-radius: 100px; padding: 0.3rem 0.85rem; margin-bottom: 1.8rem; background: rgba(74,138,90,0.07); }
+        .auth-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.03em; color: var(--ink); margin-bottom: 0.6rem; }
+        .auth-title em { font-style: italic; color: var(--green); }
+        .auth-sub { font-size: 0.9rem; color: var(--muted); line-height: 1.6; margin-bottom: 2.2rem; }
+        .field { margin-bottom: 1rem; }
+        .field label { display: block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+        .field input { width: 100%; padding: 0.85rem 1rem; background: #FFFFFF; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'Syne', sans-serif; font-size: 0.95rem; color: var(--ink); outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+        .field input::placeholder { color: rgba(46,53,40,0.3); }
+        .field input:focus { border-color: rgba(74,138,90,0.5); box-shadow: 0 0 0 3px rgba(74,138,90,0.08); }
+        .btn-submit { width: 100%; padding: 0.95rem; background: var(--ink); color: var(--bg); font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; border: none; border-radius: 100px; cursor: pointer; margin-top: 0.5rem; margin-bottom: 1.2rem; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
+        .btn-submit:hover:not(:disabled) { background: var(--green); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(74,138,90,0.2); }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .toggle-text { text-align: center; font-size: 0.85rem; color: var(--muted); }
+        .toggle-link { color: var(--terracotta); cursor: pointer; font-weight: 600; background: none; border: none; font-family: 'Syne', sans-serif; font-size: 0.85rem; padding: 0; transition: opacity 0.2s; }
+        .toggle-link:hover { opacity: 0.75; }
+        .auth-message { margin-top: 1rem; padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.85rem; text-align: center; background: rgba(74,138,90,0.08); border: 1px solid rgba(74,138,90,0.2); color: var(--green); }
+        .auth-message.error { background: rgba(181,101,74,0.08); border-color: rgba(181,101,74,0.2); color: var(--terracotta); }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes orbFloat { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(20px,-15px) scale(1.04); } 66% { transform: translate(-15px,10px) scale(0.97); } }
+        @media (max-width: 768px) {
+          body { cursor: auto; }
+          .cursor, .cursor-ring { display: none; }
+          .auth-wrap { grid-template-columns: 1fr; }
+          .auth-left { display: none; }
+          .auth-right { padding: 4rem 1.5rem 2rem; align-items: flex-start; }
+        }
+      `}</style>
 
-        <button
-          onClick={handleAuth} disabled={loading}
-          style={{width:'100%', padding:'16px', background:'#6B4F3A', color:'white', border:'none', borderRadius:'100px', fontSize:'1rem', cursor:'pointer', marginBottom:'16px'}}>
-          {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
-        </button>
+      <div className="cursor" style={{ left: cursorPos.x - 4, top: cursorPos.y - 4 }} />
+      <div className="cursor-ring" style={{ left: cursorPos.x - 17, top: cursorPos.y - 17 }} />
 
-        <p style={{textAlign:'center', fontSize:'0.85rem', color:'#9C8878'}}>
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <span onClick={() => setIsLogin(!isLogin)} style={{color:'#C9948A', cursor:'pointer', fontWeight:'500'}}>
-            {isLogin ? 'Sign up' : 'Sign in'}
-          </span>
-        </p>
+      <div className="auth-wrap">
+        {/* LEFT PANEL */}
+        <div className="auth-left">
+          <div className="orb orb1" />
+          <div className="orb orb2" />
+          <a href="/" className="left-logo">calf<span>.</span></a>
+          <div className="left-content">
+            <h2 className="left-quote">
+              recovery isn&apos;t linear.<br />
+              and that&apos;s <em>okay.</em>
+            </h2>
+            <p className="left-sub">
+              Calf helps you track burnout, understand what&apos;s going on, and find your way back — one honest check-in at a time.
+            </p>
+          </div>
+          <p className="left-footer">free · no ads · built by a student</p>
+        </div>
 
-        {message && <p style={{marginTop:'16px', textAlign:'center', fontSize:'0.85rem', color:'#C9948A'}}>{message}</p>}
+        {/* RIGHT PANEL */}
+        <div className="auth-right">
+          <div className="auth-card">
+            <div className="auth-card-tag">🌿 {isLogin ? 'welcome back' : 'get started'}</div>
+            <h1 className="auth-title">
+              {isLogin ? <>good to see<br />you <em>again.</em></> : <>let&apos;s get<br />you <em>started.</em></>}
+            </h1>
+            <p className="auth-sub">
+              {isLogin ? "Sign in to continue your recovery journey." : "Create your account. It's free, always."}
+            </p>
+
+            <div className="field">
+              <label>Email</label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={handleKey}
+              />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={handleKey}
+              />
+            </div>
+
+            <button className="btn-submit" onClick={handleAuth} disabled={loading}>
+              {loading ? 'please wait...' : isLogin ? 'sign in →' : 'create account →'}
+            </button>
+
+            <p className="toggle-text">
+              {isLogin ? "don't have an account? " : "already have an account? "}
+              <button className="toggle-link" onClick={() => { setIsLogin(!isLogin); setMessage('') }}>
+                {isLogin ? 'sign up' : 'sign in'}
+              </button>
+            </p>
+
+            {message && (
+              <div className={`auth-message ${message.toLowerCase().includes('error') || message.toLowerCase().includes('invalid') || message.toLowerCase().includes('already') ? 'error' : ''}`}>
+                {message}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
