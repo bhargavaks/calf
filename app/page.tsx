@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 function useInView(threshold = 0.15) {
   const ref = useRef(null);
@@ -12,7 +12,7 @@ function useInView(threshold = 0.15) {
   return [ref, inView];
 }
 
-function FadeIn({ children, delay = 0, style = {}, className = "" }) {
+function FadeIn({ children, delay = 0, style = {}, className = "" }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties; className?: string }) {
   const [ref, inView] = useInView();
   return (
     <div ref={ref} className={className} style={{
@@ -33,7 +33,7 @@ const burnoutTypes = [
   { id: "recovering", emoji: "🌿", label: "Recovering", color: "#4A8A5A", desc: "You've been through it. Now finding your way back, slowly, at your own pace." },
 ];
 
-function BurnoutCard({ emoji, label, color, desc, delay }) {
+function BurnoutCard({ emoji, label, color, desc, delay }: { emoji: string; label: string; color: string; desc: string; delay: number }) {
   const [hovered, setHovered] = useState(false);
   return (
     <FadeIn delay={delay}>
@@ -62,7 +62,7 @@ function BurnoutCard({ emoji, label, color, desc, delay }) {
   );
 }
 
-function StepItem({ num, title, desc, delay }) {
+function StepItem({ num, title, desc, delay }: { num: string; title: string; desc: string; delay: number }) {
   const [ref, inView] = useInView();
   return (
     <div ref={ref} style={{
@@ -98,7 +98,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const move = (e) => setCursorPos({ x: e.clientX, y: e.clientY });
+    const move = (e: MouseEvent) => setCursorPos({ x: e.clientX, y: e.clientY });
     window.addEventListener("mousemove", move);
     return () => window.removeEventListener("mousemove", move);
   }, []);
