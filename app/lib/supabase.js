@@ -1,13 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase env variables missing')
-}
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+```
 
-export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null
-  
+Then in `app/auth/page.tsx` remove the `if (!supabase)` check — it's no longer needed since supabase can't be null anymore.
+
+Save both files, then:
+```
