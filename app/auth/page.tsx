@@ -17,19 +17,37 @@ export default function Auth() {
   }, [])
 
   const handleAuth = async () => {
+    if (!email || !password) { setMessage('Please enter your email and password.'); return }
+    if (!supabase) { setMessage('Connection error. Please refresh.'); return }
     setLoading(true)
     setMessage('')
-    if (!supabase) return
-    if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setMessage(error.message)
-      else window.location.href = '/dashboard'
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setMessage(error.message)
-      else setMessage('Check your email to confirm your account!')
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Please try again.')), 10000)
+    )
+
+    try {
+      if (isLogin) {
+        const result = await Promise.race([
+          supabase.auth.signInWithPassword({ email, password }),
+          timeout
+        ]) as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>
+        if (result.error) setMessage(result.error.message)
+        else window.location.href = '/dashboard'
+      } else {
+        const result = await Promise.race([
+          supabase.auth.signUp({ email, password }),
+          timeout
+        ]) as Awaited<ReturnType<typeof supabase.auth.signUp>>
+        if (result.error) setMessage(result.error.message)
+        else setMessage('Account created! You can now sign in.')
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) setMessage(err.message)
+      else setMessage('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleKey = (e: React.KeyboardEvent) => {
@@ -82,6 +100,8 @@ export default function Auth() {
         .toggle-link:hover { opacity: 0.75; }
         .auth-message { margin-top: 1rem; padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.85rem; text-align: center; background: rgba(74,138,90,0.08); border: 1px solid rgba(74,138,90,0.2); color: var(--green); }
         .auth-message.error { background: rgba(181,101,74,0.08); border-color: rgba(181,101,74,0.2); color: var(--terracotta); }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(245,240,232,0.3); border-top-color: #F5F0E8; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes orbFloat { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(20px,-15px) scale(1.04); } 66% { transform: translate(-15px,10px) scale(0.97); } }
         @media (max-width: 768px) {
@@ -97,14 +117,13 @@ export default function Auth() {
       <div className="cursor-ring" style={{ left: cursorPos.x - 17, top: cursorPos.y - 17 }} />
 
       <div className="auth-wrap">
-        {/* LEFT PANEL */}
         <div className="auth-left">
           <div className="orb orb1" />
           <div className="orb orb2" />
           <a href="/" className="left-logo">calf<span>.</span></a>
           <div className="left-content">
             <h2 className="left-quote">
-              recovery isn&apos;t linear.<br />
+              recovery is not linear.<br />
               and that&apos;s <em>okay.</em>
             </h2>
             <p className="left-sub">
@@ -114,7 +133,6 @@ export default function Auth() {
           <p className="left-footer">free · no ads · built by a student</p>
         </div>
 
-        {/* RIGHT PANEL */}
         <div className="auth-right">
           <div className="auth-card">
             <div className="auth-card-tag">🌿 {isLogin ? 'welcome back' : 'get started'}</div>
@@ -122,7 +140,7 @@ export default function Auth() {
               {isLogin ? <>good to see<br />you <em>again.</em></> : <>let&apos;s get<br />you <em>started.</em></>}
             </h1>
             <p className="auth-sub">
-              {isLogin ? "Sign in to continue your recovery journey." : "Create your account. It's free, always."}
+              {isLogin ? 'Sign in to continue your recovery journey.' : "Create your account. It's free, always."}
             </p>
 
             <div className="field">
@@ -147,18 +165,18 @@ export default function Auth() {
             </div>
 
             <button className="btn-submit" onClick={handleAuth} disabled={loading}>
-              {loading ? 'please wait...' : isLogin ? 'sign in →' : 'create account →'}
+              {loading ? <><span className="spinner" />{isLogin ? 'signing in...' : 'creating account...'}</> : isLogin ? 'sign in →' : 'create account →'}
             </button>
 
             <p className="toggle-text">
-              {isLogin ? "don't have an account? " : "already have an account? "}
+              {isLogin ? "don't have an account? " : 'already have an account? '}
               <button className="toggle-link" onClick={() => { setIsLogin(!isLogin); setMessage('') }}>
                 {isLogin ? 'sign up' : 'sign in'}
               </button>
             </p>
 
             {message && (
-              <div className={`auth-message ${message.toLowerCase().includes('error') || message.toLowerCase().includes('invalid') || message.toLowerCase().includes('already') ? 'error' : ''}`}>
+              <div className={`auth-message ${message.toLowerCase().includes('error') || message.toLowerCase().includes('invalid') || message.toLowerCase().includes('already') || message.toLowerCase().includes('timed') ? 'error' : ''}`}>
                 {message}
               </div>
             )}
