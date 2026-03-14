@@ -127,7 +127,8 @@ export default function Auth() {
               and that&apos;s <em>okay.</em>
             </h2>
             <p className="left-sub">
-              Calf helps you track burnout, understand what&apos;s going on, and find your way back — one honest check-in at a time.
+              Calf helps you track burnout, understand what&apos;s going on,
+              and find your way back — one honest check-in at a time.
             </p>
           </div>
           <p className="left-footer">free · no ads · built by a student</p>
@@ -135,12 +136,18 @@ export default function Auth() {
 
         <div className="auth-right">
           <div className="auth-card">
-            <div className="auth-card-tag">🌿 {isLogin ? 'welcome back' : 'get started'}</div>
+            <div className="auth-card-tag">
+              🌿 {isLogin ? 'welcome back' : 'get started'}
+            </div>
             <h1 className="auth-title">
-              {isLogin ? <>good to see<br />you <em>again.</em></> : <>let&apos;s get<br />you <em>started.</em></>}
+              {isLogin
+                ? <>good to see<br />you <em>again.</em></>
+                : <>let&apos;s get<br />you <em>started.</em></>}
             </h1>
             <p className="auth-sub">
-              {isLogin ? 'Sign in to continue your recovery journey.' : "Create your account. It's free, always."}
+              {isLogin
+                ? 'Sign in to continue your recovery journey.'
+                : "Create your account. It's free, always."}
             </p>
 
             <div className="field">
@@ -165,7 +172,9 @@ export default function Auth() {
             </div>
 
             <button className="btn-submit" onClick={handleAuth} disabled={loading}>
-              {loading ? <><span className="spinner" />{isLogin ? 'signing in...' : 'creating account...'}</> : isLogin ? 'sign in →' : 'create account →'}
+              {loading
+                ? <><span className="spinner" />{isLogin ? 'signing in...' : 'creating account...'}</>
+                : isLogin ? 'sign in →' : 'create account →'}
             </button>
 
             <p className="toggle-text">
@@ -176,7 +185,15 @@ export default function Auth() {
             </p>
 
             {message && (
-              <div className={`auth-message ${message.toLowerCase().includes('error') || message.toLowerCase().includes('invalid') || message.toLowerCase().includes('already') || message.toLowerCase().includes('timed') ? 'error' : ''}`}>
+              <div className={`auth-message ${
+                message.toLowerCase().includes('error') ||
+                message.toLowerCase().includes('invalid') ||
+                message.toLowerCase().includes('already') ||
+                message.toLowerCase().includes('timed') ||
+                message.toLowerCase().includes('wrong') ||
+                message.toLowerCase().includes('connection')
+                  ? 'error' : ''
+              }`}>
                 {message}
               </div>
             )}
