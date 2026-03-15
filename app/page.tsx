@@ -212,7 +212,7 @@ export default function Home() {
           <span className="mood-value">{moods[moodIdx]}</span>
         </p>
         <div className="hero-cta">
-          <a href="/auth" className="btn-main">take the assessment ↗</a>
+          <a href="/assessment" className="btn-main">take the assessment ↗</a>
           <a href="#burnout" className="btn-ghost">learn more ↓</a>
         </div>
         <div className="scroll-hint">
@@ -310,7 +310,7 @@ export default function Home() {
           <p className="section-body" style={{ margin: "0 auto 2.5rem" }}>
             Two minutes. Eight questions. A little more clarity about where you&apos;re at. That&apos;s all this is.
           </p>
-          <a href="/auth" className="btn-main" style={{ fontSize: "1rem", padding: "1rem 2.5rem" }}>
+          <a href="/assessment" className="btn-main" style={{ fontSize: "1rem", padding: "1rem 2.5rem" }}>
             begin your check-in ↗
           </a>
         </FadeIn>
