@@ -1,514 +1,326 @@
-'use client'
-import React, { useState, useEffect, useRef } from 'react'
-import { supabase } from '../lib/supabase'
+"use client";
+import React, { useState, useEffect, useRef } from "react";
 
-const openQuestions = [
-  {
-    id: 1,
-    text: "When was the last time a day felt genuinely easy?",
-    sub: "Not productive, not successful — just light. Like you weren't carrying anything.",
-    placeholder: "Take your time. There's no right answer here...",
-  },
-  {
-    id: 2,
-    text: "What do you actually do when you're not studying or in class?",
-    sub: "Your real answer, not the ideal one.",
-    placeholder: "Be honest with yourself...",
-  },
-  {
-    id: 3,
-    text: "If you had a completely free week — no deadlines, no obligations — what would you feel?",
-    sub: "Not what you'd do. What you'd actually feel, in your body, in the first few minutes.",
-    placeholder: "Relief? Anxiety? Something else?",
-  },
-  {
-    id: 4,
-    text: "Why do you think you're here today?",
-    sub: "Something brought you to this page. What was it?",
-    placeholder: "Write whatever comes to mind...",
-  },
-]
-
-const mcqQuestions = [
-  {
-    id: 5, area: 'cognitive',
-    text: "When you get a notification from a professor or classmate about academics, what happens in your chest?",
-    sub: "That split second before you even read it.",
-    options: [
-      { label: "Nothing much — I just check it", score: 0 },
-      { label: "A small tightening, but it passes", score: 1 },
-      { label: "A jolt of dread I have to breathe through", score: 2 },
-      { label: "I avoid it for as long as I can", score: 3 },
-    ]
-  },
-  {
-    id: 6, area: 'worth',
-    text: "Think about something you used to love doing before college. How present is that thing in your life now?",
-    sub: "A sport, a hobby, an interest — something that was just yours.",
-    options: [
-      { label: "Still there, still matters to me", score: 0 },
-      { label: "I do it sometimes, but less than before", score: 1 },
-      { label: "I've mostly let it go without realising it", score: 2 },
-      { label: "I forgot I even had that until just now", score: 3 },
-    ]
-  },
-  {
-    id: 7, area: 'worth',
-    text: "If a close friend described how you seem lately, what do you think they would say?",
-    sub: "Not how you want to seem. What they'd actually notice.",
-    options: [
-      { label: "Pretty much like themselves", score: 0 },
-      { label: "A bit more stressed or quiet lately", score: 1 },
-      { label: "Withdrawn — not really present anymore", score: 2 },
-      { label: "They've probably noticed I'm not okay", score: 3 },
-    ]
-  },
-  {
-    id: 8, area: 'cognitive',
-    text: "When you lie down at night, what does your mind do?",
-    sub: "That space between being awake and asleep.",
-    options: [
-      { label: "Quiets down — I fall asleep okay", score: 0 },
-      { label: "Wanders a bit, but eventually settles", score: 1 },
-      { label: "Replays the day, worries about tomorrow", score: 2 },
-      { label: "Races — sleep feels like something I have to fight for", score: 3 },
-    ]
-  },
-]
-
-const resultData: Record<string, { emoji: string; title: string; desc: string; color: string; accent: string }> = {
-  stable: {
-    emoji: '🌤️',
-    title: "You're holding up.",
-    desc: "You're managing the pressure without breaking under it. The foundations are there — keep protecting them. Small habits now prevent big collapses later.",
-    color: '#4A8A5A', accent: 'rgba(74,138,90,0.1)',
-  },
-  early: {
-    emoji: '🌿',
-    title: "Early signs are showing.",
-    desc: "You're functioning, but there's strain beneath the surface. This is actually the best time to step in — before it compounds. You don't have to wait until you're fully cooked.",
-    color: '#7A9E5A', accent: 'rgba(122,158,90,0.1)',
-  },
-  depleted: {
-    emoji: '🍂',
-    title: "You're running on empty.",
-    desc: "You've been giving from a tank that's been dry for a while. Rest isn't optional right now — it's the work. What you're feeling is real, and it makes sense.",
-    color: '#B5654A', accent: 'rgba(181,101,74,0.1)',
-  },
-  severe: {
-    emoji: '🌫️',
-    title: "You're deeply exhausted.",
-    desc: "This level of burnout doesn't fix itself with a good night's sleep. Real rest, real support, and real honesty about what needs to change — that's what this takes. Please don't carry this alone.",
-    color: '#7A4A8A', accent: 'rgba(122,74,138,0.1)',
-  },
+function useInView(threshold = 0.15): [React.RefObject<HTMLDivElement | null>, boolean] {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setInView(true); }, { threshold });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, inView];
 }
 
-export default function Assessment() {
-  const [stage, setStage] = useState<'intro' | 'open' | 'transition' | 'mcq' | 'loading' | 'result' | 'save'>('intro')
-  const [openIdx, setOpenIdx] = useState(0)
-  const [openAnswers, setOpenAnswers] = useState<string[]>(['', '', '', ''])
-  const [mcqIdx, setMcqIdx] = useState(0)
-  const [mcqAnswers, setMcqAnswers] = useState<Record<number, number>>({})
-  const [result, setResult] = useState<{ key: string; dim: Record<string, number> } | null>(null)
-  const [saveState, setSaveState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+function FadeIn({ children, delay = 0, style = {}, className = "" }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties; className?: string }) {
+  const [ref, inView] = useInView();
+  return (
+    <div ref={ref} className={className} style={{
+      opacity: inView ? 1 : 0,
+      transform: inView ? "translateY(0)" : "translateY(28px)",
+      transition: `opacity 0.9s ${delay}s cubic-bezier(0.16,1,0.3,1), transform 0.9s ${delay}s cubic-bezier(0.16,1,0.3,1)`,
+      ...style
+    }}>
+      {children}
+    </div>
+  );
+}
+
+const burnoutTypes = [
+  { id: "exhausted",  emoji: "🪫", label: "Exhausted",  color: "#B5654A", desc: "Running on fumes. Physically drained, emotionally hollow. Sleep doesn't fix it anymore." },
+  { id: "detached",   emoji: "🌫️", label: "Detached",   color: "#5A8A9A", desc: "You're present but not really there. Lectures, assignments — all feels distant, like watching through glass." },
+  { id: "worthless",  emoji: "🌀", label: "Worthless",  color: "#7A6EAA", desc: "The nagging feeling that you're behind, not good enough, falling short no matter what you do." },
+  { id: "recovering", emoji: "🌿", label: "Recovering", color: "#4A8A5A", desc: "You've been through it. Now finding your way back, slowly, at your own pace." },
+];
+
+function BurnoutCard({ emoji, label, color, desc, delay }: { emoji: string; label: string; color: string; desc: string; delay: number }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <FadeIn delay={delay}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          background: hovered ? `${color}12` : "#FFFFFF",
+          border: `1.5px solid ${hovered ? color + "55" : "rgba(90,110,85,0.12)"}`,
+          borderRadius: 24, padding: "2rem 1.8rem",
+          transition: "all 0.4s cubic-bezier(0.16,1,0.3,1)",
+          cursor: "default",
+          boxShadow: hovered ? `0 8px 32px ${color}18` : "0 2px 12px rgba(80,90,70,0.06)",
+        }}
+      >
+        <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>{emoji}</div>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.15rem", fontWeight: 600, color: hovered ? color : "#2E3528", marginBottom: "0.6rem", transition: "color 0.3s" }}>{label}</div>
+        <div style={{ fontSize: "0.87rem", color: "rgba(46,53,40,0.55)", lineHeight: 1.7 }}>{desc}</div>
+      </div>
+    </FadeIn>
+  );
+}
+
+function StepItem({ num, title, desc, delay }: { num: string; title: string; desc: string; delay: number }) {
+  const [ref, inView] = useInView();
+  return (
+    <div ref={ref} style={{
+      display: "flex", gap: "1.5rem", alignItems: "flex-start",
+      opacity: inView ? 1 : 0,
+      transform: inView ? "translateX(0)" : "translateX(-24px)",
+      transition: `opacity 0.8s ${delay}s cubic-bezier(0.16,1,0.3,1), transform 0.8s ${delay}s cubic-bezier(0.16,1,0.3,1)`
+    }}>
+      <div style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, border: "1.5px solid rgba(90,140,100,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Playfair Display', serif", fontSize: "0.95rem", color: "#4A8A5A", background: "rgba(90,140,100,0.07)" }}>{num}</div>
+      <div>
+        <div style={{ fontSize: "1.05rem", fontWeight: 600, color: "#2E3528", marginBottom: "0.3rem" }}>{title}</div>
+        <div style={{ fontSize: "0.87rem", color: "rgba(46,53,40,0.5)", lineHeight: 1.7 }}>{desc}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function Home() {
+  const [moodIdx, setMoodIdx] = useState(0);
+  const [cursorPos, setCursorPos] = useState({ x: -200, y: -200 });
+  const moods = ["cooked 🍳", "kinda dead 💀", "barely surviving 🌧️", "hanging in there 🌿", "actually okay ✨"];
 
   useEffect(() => {
-    if (stage === 'open' && textareaRef.current) textareaRef.current.focus()
-  }, [stage, openIdx])
+    const t = setInterval(() => setMoodIdx(i => (i + 1) % moods.length), 2800);
+    return () => clearInterval(t);
+  }, []);
 
-  const nextOpen = () => {
-    if (!openAnswers[openIdx].trim()) return
-    if (openIdx === openQuestions.length - 1) { setStage('transition'); return }
-    setOpenIdx(openIdx + 1)
-  }
+  useEffect(() => {
+    const move = (e: MouseEvent) => setCursorPos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("mousemove", move);
+    return () => window.removeEventListener("mousemove", move);
+  }, []);
 
-  const prevOpen = () => { if (openIdx > 0) setOpenIdx(openIdx - 1) }
-
-  const nextMcq = () => {
-    if (mcqAnswers[mcqIdx] === undefined) return
-    if (mcqIdx === mcqQuestions.length - 1) { calculate(); return }
-    setMcqIdx(mcqIdx + 1)
-  }
-
-  const prevMcq = () => { if (mcqIdx > 0) setMcqIdx(mcqIdx - 1) }
-
-  const calculate = () => {
-    setStage('loading')
-    const dim: Record<string, number> = { exhaustion: 0, cognitive: 0, worth: 0, recovery: 0 }
-    mcqQuestions.forEach((q, i) => {
-      if (mcqAnswers[i] !== undefined) dim[q.area] += q.options[mcqAnswers[i]].score
-    })
-    // Also factor in open answers length/tone as a rough signal
-    const openScore = openAnswers.reduce((acc, a) => acc + Math.min(a.length > 100 ? 1 : 0, 1), 0)
-    dim.recovery = Math.min(dim.recovery + openScore, 6)
-    const total = Math.round(((dim.exhaustion + dim.cognitive + dim.worth + dim.recovery) / 24) * 100)
-    const key = total <= 20 ? 'stable' : total <= 42 ? 'early' : total <= 67 ? 'depleted' : 'severe'
-    setTimeout(() => { setResult({ key, dim }); setStage('result') }, 2000)
-  }
-
-  const handleSave = async (email: string, password: string, isNew: boolean) => {
-    if (!supabase) { setSaveState('error'); return }
-    setSaveState('loading')
-    try {
-      let userId: string | null = null
-      if (isNew) {
-        const { data, error } = await supabase.auth.signUp({ email, password })
-        if (error) throw error
-        userId = data.user?.id || null
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-        userId = data.user?.id || null
-      }
-      if (userId && result) {
-        const dim = result.dim
-        await supabase.from('users_progress').insert({
-          user_id: userId,
-          exhaustion_score: dim.exhaustion,
-          cognitive_score: dim.cognitive,
-          worth_score: dim.worth,
-          recovery_score: dim.recovery,
-          result_type: result.key,
-          created_at: new Date(),
-        })
-      }
-      setSaveState('done')
-      setTimeout(() => { window.location.href = '/dashboard' }, 1200)
-    } catch {
-      setSaveState('error')
-    }
-  }
-
-  const pct = (score: number) => Math.round((score / 6) * 100)
-  const totalProgress = stage === 'open'
-    ? ((openIdx + 1) / 8) * 100
-    : stage === 'mcq' ? ((4 + mcqIdx + 1) / 8) * 100 : 0
-
-  // ── INTRO ──
-  if (stage === 'intro') return (
-    <Page progress={0}>
-      <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center', animation: 'fadeUp 0.8s both' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--green)', border: '1.5px solid rgba(74,138,90,0.25)', borderRadius: 100, padding: '0.3rem 0.9rem', marginBottom: 28, background: 'rgba(74,138,90,0.07)' }}>
-          🌿 burnout assessment
-        </div>
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(2.2rem, 6vw, 4rem)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.03em', color: 'var(--ink)', marginBottom: 20 }}>
-          how are you<br /><em style={{ fontStyle: 'italic', color: 'var(--green)' }}>actually</em> doing?
-        </h1>
-        <p style={{ fontSize: '1rem', color: 'var(--muted)', lineHeight: 1.8, maxWidth: 440, margin: '0 auto 8px' }}>
-          8 questions. The first 4 are yours to answer in your own words. The last 4 are quick.
-        </p>
-        <p style={{ fontSize: '0.82rem', color: 'var(--muted)', fontStyle: 'italic', margin: '0 auto 44px', opacity: 0.7 }}>
-          Takes about 3 minutes. You can save your results at the end.
-        </p>
-        <Btn onClick={() => setStage('open')}>begin &rarr;</Btn>
-      </div>
-    </Page>
-  )
-
-  // ── OPEN QUESTIONS ──
-  if (stage === 'open') {
-    const q = openQuestions[openIdx]
-    const val = openAnswers[openIdx]
-    return (
-      <Page progress={totalProgress}>
-        <div style={{ maxWidth: 660, margin: '0 auto', width: '100%', animation: 'fadeUp 0.5s both' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 48 }}>
-            <span style={{ fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-              {openIdx + 1} of 8
-            </span>
-            <span style={{ fontSize: '0.7rem', padding: '4px 12px', borderRadius: 100, background: 'rgba(74,138,90,0.08)', color: 'var(--green)', border: '1px solid rgba(74,138,90,0.2)' }}>
-              in your words
-            </span>
-          </div>
-
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)', fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.02em', color: 'var(--ink)', marginBottom: 10 }}>
-            {q.text}
-          </h2>
-          <p style={{ fontSize: '0.88rem', color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.7, marginBottom: 28 }}>
-            {q.sub}
-          </p>
-
-          <textarea
-            ref={textareaRef}
-            value={val}
-            onChange={e => {
-              const updated = [...openAnswers]
-              updated[openIdx] = e.target.value
-              setOpenAnswers(updated)
-            }}
-            onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) nextOpen() }}
-            placeholder={q.placeholder}
-            rows={5}
-            style={{
-              width: '100%', padding: '1.1rem 1.2rem',
-              background: '#FFFFFF',
-              border: `1.5px solid ${val.trim() ? 'rgba(74,138,90,0.35)' : 'rgba(90,110,85,0.14)'}`,
-              borderRadius: 16, resize: 'none',
-              fontFamily: "'Syne', sans-serif", fontSize: '0.97rem',
-              color: 'var(--ink)', lineHeight: 1.75,
-              outline: 'none', transition: 'border-color 0.2s',
-              boxShadow: val.trim() ? '0 2px 16px rgba(74,138,90,0.08)' : 'none',
-              marginBottom: 8,
-            }}
-          />
-          <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: 36, opacity: 0.6 }}>
-            {val.length > 0 ? `${val.length} characters` : 'press ⌘ + Enter to continue'}
-          </p>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button onClick={prevOpen} disabled={openIdx === 0}
-              style={{ padding: '0.75rem 1.5rem', background: 'transparent', border: '1px solid rgba(90,110,85,0.18)', borderRadius: 100, cursor: openIdx === 0 ? 'default' : 'pointer', color: 'var(--muted)', fontSize: '0.86rem', opacity: openIdx === 0 ? 0.4 : 1, fontFamily: "'Syne', sans-serif" }}>
-              &larr; back
-            </button>
-            <button onClick={nextOpen} disabled={!val.trim()}
-              style={{ padding: '0.75rem 2rem', background: val.trim() ? 'var(--ink)' : 'rgba(46,53,40,0.15)', color: val.trim() ? 'var(--bg)' : 'var(--muted)', border: 'none', borderRadius: 100, cursor: val.trim() ? 'pointer' : 'default', fontSize: '0.86rem', fontWeight: 700, fontFamily: "'Syne', sans-serif", transition: 'all 0.2s' }}>
-              {openIdx === openQuestions.length - 1 ? 'next part →' : 'next →'}
-            </button>
-          </div>
-        </div>
-      </Page>
-    )
-  }
-
-  // ── TRANSITION ──
-  if (stage === 'transition') return (
-    <Page progress={50}>
-      <div style={{ maxWidth: 520, margin: '0 auto', textAlign: 'center', animation: 'fadeUp 0.8s both' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: 24 }}>🌿</div>
-        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em', color: 'var(--ink)', marginBottom: 16 }}>
-          now for the<br /><em style={{ fontStyle: 'italic', color: 'var(--green)' }}>quieter questions.</em>
-        </h2>
-        <p style={{ fontSize: '0.95rem', color: 'var(--muted)', lineHeight: 1.8, maxWidth: 400, margin: '0 auto 40px' }}>
-          The next 4 go a little deeper. Parts of your life you might not have checked in with lately. Just pick what feels truest.
-        </p>
-        <Btn onClick={() => setStage('mcq')}>continue &rarr;</Btn>
-      </div>
-    </Page>
-  )
-
-  // ── MCQ QUESTIONS ──
-  if (stage === 'mcq') {
-    const q = mcqQuestions[mcqIdx]
-    return (
-      <Page progress={totalProgress}>
-        <div style={{ maxWidth: 660, margin: '0 auto', width: '100%', animation: 'fadeUp 0.5s both' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 48 }}>
-            <span style={{ fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-              {4 + mcqIdx + 1} of 8
-            </span>
-            <span style={{ fontSize: '0.7rem', padding: '4px 12px', borderRadius: 100, background: 'rgba(181,101,74,0.08)', color: 'var(--terracotta)', border: '1px solid rgba(181,101,74,0.2)' }}>
-              deeper dive
-            </span>
-          </div>
-
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)', fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.02em', color: 'var(--ink)', marginBottom: 10 }}>
-            {q.text}
-          </h2>
-          <p style={{ fontSize: '0.88rem', color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.7, marginBottom: 36 }}>
-            {q.sub}
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 48 }}>
-            {q.options.map((opt, i) => {
-              const selected = mcqAnswers[mcqIdx] === i
-              return (
-                <button key={i} onClick={() => setMcqAnswers({ ...mcqAnswers, [mcqIdx]: i })} style={{
-                  padding: '1.1rem 1.4rem',
-                  background: selected ? 'rgba(74,138,90,0.07)' : '#FFFFFF',
-                  border: `1.5px solid ${selected ? 'rgba(74,138,90,0.4)' : 'rgba(90,110,85,0.12)'}`,
-                  borderRadius: 16, textAlign: 'left',
-                  fontSize: '0.93rem', color: selected ? 'var(--ink)' : 'rgba(46,53,40,0.7)',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  boxShadow: selected ? '0 2px 12px rgba(74,138,90,0.1)' : 'none',
-                }}>
-                  <span style={{ width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${selected ? 'var(--green)' : 'rgba(90,110,85,0.25)'}`, flexShrink: 0, background: selected ? 'var(--green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                    {selected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', display: 'block' }} />}
-                  </span>
-                  {opt.label}
-                </button>
-              )
-            })}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button onClick={prevMcq} disabled={mcqIdx === 0}
-              style={{ padding: '0.75rem 1.5rem', background: 'transparent', border: '1px solid rgba(90,110,85,0.18)', borderRadius: 100, cursor: mcqIdx === 0 ? 'default' : 'pointer', color: 'var(--muted)', fontSize: '0.86rem', opacity: mcqIdx === 0 ? 0.4 : 1, fontFamily: "'Syne', sans-serif" }}>
-              &larr; back
-            </button>
-            <button onClick={nextMcq} disabled={mcqAnswers[mcqIdx] === undefined}
-              style={{ padding: '0.75rem 2rem', background: mcqAnswers[mcqIdx] !== undefined ? 'var(--ink)' : 'rgba(46,53,40,0.15)', color: mcqAnswers[mcqIdx] !== undefined ? 'var(--bg)' : 'var(--muted)', border: 'none', borderRadius: 100, cursor: mcqAnswers[mcqIdx] !== undefined ? 'pointer' : 'default', fontSize: '0.86rem', fontWeight: 700, fontFamily: "'Syne', sans-serif", transition: 'all 0.2s' }}>
-              {mcqIdx === mcqQuestions.length - 1 ? 'see results →' : 'next →'}
-            </button>
-          </div>
-        </div>
-      </Page>
-    )
-  }
-
-  // ── LOADING ──
-  if (stage === 'loading') return (
-    <Page progress={100}>
-      <div style={{ textAlign: 'center', animation: 'fadeUp 0.6s both' }}>
-        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, var(--green), var(--terracotta))', margin: '0 auto 28px', animation: 'pulse 2s ease-in-out infinite' }} />
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontStyle: 'italic', color: 'var(--ink)' }}>
-          reading your answers...
-        </p>
-      </div>
-    </Page>
-  )
-
-  // ── RESULT ──
-  if (stage === 'result' && result) {
-    const r = resultData[result.key]
-    return (
-      <Page progress={100}>
-        <div style={{ maxWidth: 660, margin: '0 auto', animation: 'fadeUp 0.8s both' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <span style={{ fontSize: '3rem', display: 'block', marginBottom: 20 }}>{r.emoji}</span>
-            <div style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: r.color, background: r.accent, border: `1px solid ${r.color}33`, borderRadius: 100, padding: '0.3rem 0.9rem', marginBottom: 16 }}>
-              your result
-            </div>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.03em', color: 'var(--ink)', marginBottom: 16 }}>
-              {r.title}
-            </h2>
-            <p style={{ fontSize: '1rem', color: 'var(--muted)', lineHeight: 1.8, maxWidth: 500, margin: '0 auto' }}>
-              {r.desc}
-            </p>
-          </div>
-
-          <div style={{ background: '#FFFFFF', borderRadius: 24, padding: '2rem', marginBottom: 24, border: '1px solid rgba(90,110,85,0.1)', boxShadow: '0 2px 16px rgba(80,90,70,0.06)' }}>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontStyle: 'italic', color: 'var(--ink)', marginBottom: 24, fontSize: '1.05rem' }}>your burnout breakdown</p>
-            {[
-              ['Exhaustion', result.dim.exhaustion, '#B5654A'],
-              ['Mental Fatigue', result.dim.cognitive, '#7A9E5A'],
-              ['Self-Worth', result.dim.worth, '#7A6EAA'],
-              ['Recovery Capacity', result.dim.recovery, '#4A8A5A'],
-            ].map(([label, score, color]) => (
-              <div key={label as string} style={{ marginBottom: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--muted)', marginBottom: 7 }}>
-                  <span>{label as string}</span>
-                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{pct(score as number)}%</span>
-                </div>
-                <div style={{ height: 6, background: 'rgba(90,110,85,0.1)', borderRadius: 100, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct(score as number)}%`, background: color as string, borderRadius: 100, transition: 'width 1s cubic-bezier(0.16,1,0.3,1)' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background: 'rgba(74,138,90,0.05)', border: '1px solid rgba(74,138,90,0.15)', borderRadius: 20, padding: '1.5rem 2rem', marginBottom: 24, textAlign: 'center' }}>
-            <p style={{ fontSize: '0.9rem', color: 'var(--ink)', fontWeight: 600, marginBottom: 6 }}>Want to track your recovery over time?</p>
-            <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginBottom: 20 }}>Save your results to see how you improve. Free, always.</p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button onClick={() => setStage('save')} style={{ background: 'var(--ink)', color: 'var(--bg)', fontFamily: "'Syne', sans-serif", fontSize: '0.88rem', fontWeight: 700, padding: '0.75rem 1.8rem', border: 'none', borderRadius: 100, cursor: 'pointer' }}>
-                save my results →
-              </button>
-              <a href="/recovery" style={{ background: 'transparent', color: 'var(--muted)', fontFamily: "'Syne', sans-serif", fontSize: '0.88rem', fontWeight: 500, padding: '0.75rem 1.5rem', border: '1px solid rgba(90,110,85,0.18)', borderRadius: 100, textDecoration: 'none' }}>
-                skip for now
-              </a>
-            </div>
-          </div>
-        </div>
-      </Page>
-    )
-  }
-
-  // ── SAVE ──
-  if (stage === 'save') return <SaveForm onSave={handleSave} saveState={saveState} />
-
-  return null
-}
-
-function Btn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <button onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{ background: hovered ? 'var(--green)' : 'var(--ink)', color: 'var(--bg)', fontFamily: "'Syne', sans-serif", fontSize: '0.95rem', fontWeight: 700, padding: '0.95rem 2.5rem', border: 'none', borderRadius: 100, cursor: 'pointer', transition: 'background 0.2s, transform 0.2s', transform: hovered ? 'translateY(-2px)' : 'none' }}>
-      {children}
-    </button>
-  )
-}
-
-function SaveForm({ onSave, saveState }: { onSave: (email: string, password: string, isNew: boolean) => void; saveState: string }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isNew, setIsNew] = useState(true)
-
-  return (
-    <Page progress={100}>
-      <div style={{ maxWidth: 420, margin: '0 auto', animation: 'fadeUp 0.7s both' }}>
-        <a href="/" style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', fontWeight: 700, fontStyle: 'italic', color: 'var(--ink)', textDecoration: 'none', display: 'block', marginBottom: 40 }}>
-          calf<span style={{ color: 'var(--green)' }}>.</span>
-        </a>
-        <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--green)', marginBottom: 16 }}>save your results</div>
-        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.03em', color: 'var(--ink)', marginBottom: 8 }}>
-          {isNew ? <>create your<br /><em style={{ fontStyle: 'italic', color: 'var(--green)' }}>account.</em></> : <>welcome<br /><em style={{ fontStyle: 'italic', color: 'var(--green)' }}>back.</em></>}
-        </h2>
-        <p style={{ fontSize: '0.88rem', color: 'var(--muted)', lineHeight: 1.7, marginBottom: 28 }}>
-          {isNew ? 'Your results will be saved to your dashboard.' : 'Sign in to save your results.'}
-        </p>
-
-        {['Email', 'Password'].map((label, idx) => (
-          <div key={label} style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>{label}</label>
-            <input
-              type={idx === 1 ? 'password' : 'email'}
-              placeholder={idx === 0 ? 'you@example.com' : '••••••••'}
-              value={idx === 0 ? email : password}
-              onChange={e => idx === 0 ? setEmail(e.target.value) : setPassword(e.target.value)}
-              style={{ width: '100%', padding: '0.85rem 1rem', background: '#FFFFFF', border: '1.5px solid rgba(90,110,85,0.14)', borderRadius: 12, fontFamily: "'Syne', sans-serif", fontSize: '0.93rem', color: 'var(--ink)', outline: 'none' }}
-            />
-          </div>
-        ))}
-
-        <button onClick={() => onSave(email, password, isNew)} disabled={saveState === 'loading' || saveState === 'done'}
-          style={{ width: '100%', padding: '0.95rem', background: 'var(--ink)', color: 'var(--bg)', fontFamily: "'Syne', sans-serif", fontSize: '0.95rem', fontWeight: 700, border: 'none', borderRadius: 100, cursor: 'pointer', marginTop: 8, marginBottom: 16, opacity: saveState === 'loading' ? 0.7 : 1 }}>
-          {saveState === 'loading' ? 'saving...' : saveState === 'done' ? 'saved! redirecting...' : isNew ? 'create account & save →' : 'sign in & save →'}
-        </button>
-
-        {saveState === 'error' && (
-          <p style={{ textAlign: 'center', fontSize: '0.83rem', color: 'var(--terracotta)', marginBottom: 12 }}>
-            Something went wrong. Check your details and try again.
-          </p>
-        )}
-
-        <p style={{ textAlign: 'center', fontSize: '0.83rem', color: 'var(--muted)' }}>
-          {isNew ? 'Already have an account? ' : "Don't have an account? "}
-          <button onClick={() => setIsNew(!isNew)} style={{ color: 'var(--terracotta)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Syne', sans-serif", fontSize: '0.83rem', padding: 0 }}>
-            {isNew ? 'sign in' : 'sign up'}
-          </button>
-        </p>
-      </div>
-    </Page>
-  )
-}
-
-function Page({ children, progress }: { children: React.ReactNode; progress: number }) {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Syne:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Syne:wght@300;400;500;600&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        :root { --bg: #F5F0E8; --ink: #2E3528; --muted: rgba(46,53,40,0.5); --green: #4A8A5A; --terracotta: #B5654A; --border: rgba(90,110,85,0.12); }
-        html, body { min-height: 100%; }
-        body { background: var(--bg); color: var(--ink); font-family: 'Syne', sans-serif; overflow-x: hidden; }
+        :root {
+          --bg: #F5F0E8; --bg2: #EDE8DC; --bg3: #EAE4D6;
+          --border: rgba(90,110,85,0.12); --ink: #2E3528;
+          --muted: rgba(46,53,40,0.5); --green: #4A8A5A; --terracotta: #B5654A;
+        }
+        html { scroll-behavior: smooth; }
+        body { background: var(--bg); color: var(--ink); font-family: 'Syne', sans-serif; overflow-x: hidden; cursor: none; }
+        .cursor { position: fixed; width: 9px; height: 9px; background: var(--green); border-radius: 50%; pointer-events: none; z-index: 9999; }
+        .cursor-ring { position: fixed; width: 34px; height: 34px; border: 1.5px solid rgba(74,138,90,0.4); border-radius: 50%; pointer-events: none; z-index: 9998; transition: left 0.1s ease, top 0.1s ease; }
         body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: 0.025; pointer-events: none; z-index: 9997; }
-        textarea:focus { outline: none; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.8; } }
+        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.3rem 3rem; background: rgba(245,240,232,0.85); backdrop-filter: blur(18px); border-bottom: 1px solid var(--border); }
+        .logo { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; font-style: italic; color: var(--ink); text-decoration: none; letter-spacing: -0.02em; }
+        .logo span { color: var(--green); }
+        .nav-links { display: flex; align-items: center; gap: 0.4rem; }
+        .nav-link { font-size: 0.84rem; font-weight: 500; color: var(--muted); text-decoration: none; padding: 0.4rem 0.9rem; border-radius: 100px; transition: color 0.2s, background 0.2s; }
+        .nav-link:hover { color: var(--ink); background: rgba(74,138,90,0.08); }
+        .nav-cta { font-size: 0.84rem; font-weight: 600; color: #F5F0E8; text-decoration: none; padding: 0.55rem 1.4rem; border-radius: 100px; background: var(--ink); transition: background 0.2s, transform 0.2s; }
+        .nav-cta:hover { background: var(--green); transform: translateY(-1px); }
+        .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10rem 2rem 6rem; text-align: center; position: relative; overflow: hidden; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; animation: orbFloat 14s ease-in-out infinite; }
+        .orb1 { width: 560px; height: 560px; background: rgba(122,158,124,0.18); top: -100px; left: -180px; }
+        .orb2 { width: 440px; height: 440px; background: rgba(200,149,106,0.13); bottom: -100px; right: -120px; animation-delay: -5s; }
+        .orb3 { width: 300px; height: 300px; background: rgba(181,101,74,0.08); top: 40%; left: 60%; animation-delay: -9s; }
+        .hero-tag { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); border: 1.5px solid rgba(74,138,90,0.25); border-radius: 100px; padding: 0.35rem 1rem; margin-bottom: 2.5rem; background: rgba(74,138,90,0.07); animation: fadeUp 1s 0.1s both; }
+        .hero-headline { font-family: 'Playfair Display', serif; font-size: clamp(3rem, 8vw, 7rem); font-weight: 700; line-height: 1.02; letter-spacing: -0.04em; max-width: 880px; animation: fadeUp 1s 0.2s both; color: var(--ink); }
+        .hero-headline em { font-style: italic; color: var(--green); }
+        .hero-headline .soft { color: rgba(46,53,40,0.25); }
+        .hero-sub { font-size: clamp(0.95rem, 1.8vw, 1.1rem); color: var(--muted); line-height: 1.8; max-width: 460px; margin-top: 2rem; animation: fadeUp 1s 0.3s both; }
+        .mood-display { margin-top: 1.2rem; font-size: 0.87rem; color: var(--muted); animation: fadeUp 1s 0.35s both; }
+        .mood-value { color: var(--terracotta); font-weight: 600; display: inline-block; min-width: 180px; }
+        .hero-cta { display: flex; gap: 1rem; margin-top: 3rem; justify-content: center; flex-wrap: wrap; animation: fadeUp 1s 0.45s both; }
+        .btn-main { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--ink); color: var(--bg); font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; text-decoration: none; padding: 0.9rem 2.2rem; border-radius: 100px; transition: transform 0.2s, background 0.2s, box-shadow 0.2s; }
+        .btn-main:hover { background: var(--green); transform: translateY(-3px); box-shadow: 0 12px 32px rgba(74,138,90,0.2); }
+        .btn-ghost { display: inline-flex; align-items: center; gap: 0.5rem; background: transparent; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 500; text-decoration: none; padding: 0.9rem 2rem; border-radius: 100px; border: 1.5px solid var(--border); transition: color 0.2s, border-color 0.2s, transform 0.2s; }
+        .btn-ghost:hover { color: var(--ink); border-color: rgba(46,53,40,0.25); transform: translateY(-2px); }
+        .scroll-hint { margin-top: 5rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; animation: fadeUp 1s 0.6s both; }
+        .scroll-line { width: 1px; height: 48px; background: linear-gradient(to bottom, rgba(74,138,90,0.5), transparent); animation: scrollPulse 2.5s ease-in-out infinite; }
+        .divider { height: 1px; background: linear-gradient(to right, transparent, rgba(90,110,85,0.15), transparent); margin: 0 3rem; }
+        .section-wrap { max-width: 1080px; margin: 0 auto; padding: 7rem 2.5rem; }
+        .label-tag { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.6rem; }
+        .label-tag::before { content: ''; display: block; width: 20px; height: 1px; background: var(--green); opacity: 0.5; }
+        .section-title { font-family: 'Playfair Display', serif; font-size: clamp(2rem, 4.5vw, 3.4rem); font-weight: 700; line-height: 1.12; letter-spacing: -0.03em; max-width: 560px; margin-bottom: 1rem; color: var(--ink); }
+        .section-title em { font-style: italic; color: var(--green); }
+        .section-body { color: var(--muted); font-size: 1rem; line-height: 1.8; max-width: 460px; margin-bottom: 3.5rem; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.2rem; }
+        .quote-section { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8rem 2.5rem; text-align: center; }
+        .quote-text { font-family: 'Playfair Display', serif; font-size: clamp(1.5rem, 4vw, 2.8rem); font-weight: 400; font-style: italic; line-height: 1.45; color: var(--ink); max-width: 700px; margin: 0 auto 1.5rem; letter-spacing: -0.02em; }
+        .quote-text em { color: var(--green); font-style: normal; font-weight: 700; }
+        .quote-attr { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+        .steps-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem 6rem; align-items: start; }
+        .steps-list { display: flex; flex-direction: column; gap: 2.2rem; }
+        .about-section { background: var(--bg3); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .about-inner { max-width: 1080px; margin: 0 auto; padding: 7rem 2.5rem; display: grid; grid-template-columns: 1fr 1.5fr; gap: 5rem; align-items: center; }
+        .about-avatar { width: 100%; aspect-ratio: 1; max-width: 300px; border-radius: 32px; background: linear-gradient(135deg, rgba(122,158,124,0.2), rgba(200,149,106,0.12)); border: 1.5px solid rgba(90,140,100,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; font-size: 5rem; position: relative; overflow: hidden; box-shadow: 0 8px 40px rgba(74,138,90,0.08); }
+        .about-avatar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 35% 35%, rgba(122,158,124,0.15), transparent 65%); }
+        .about-name-badge { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); background: rgba(74,138,90,0.08); border: 1px solid rgba(74,138,90,0.2); border-radius: 100px; padding: 0.3rem 0.9rem; }
+        .about-title-text { font-family: 'Playfair Display', serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; margin-bottom: 1.4rem; color: var(--ink); }
+        .about-title-text em { font-style: italic; color: var(--green); }
+        .about-body { color: var(--muted); font-size: 1rem; line-height: 1.85; margin-bottom: 1rem; }
+        .about-body strong { color: var(--ink); font-weight: 600; }
+        .about-tags { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 2rem; }
+        .about-tag { font-size: 0.78rem; font-weight: 500; color: var(--muted); border: 1px solid var(--border); border-radius: 100px; padding: 0.3rem 0.85rem; background: rgba(255,255,255,0.5); }
+        .cta-section { padding: 9rem 2.5rem; text-align: center; position: relative; overflow: hidden; }
+        .cta-section .section-title { max-width: 700px; margin: 0.5rem auto 1rem; }
+        .cta-section .section-body { max-width: 360px; margin: 0 auto 2.5rem; }
+        footer { border-top: 1px solid var(--border); background: var(--bg2); padding: 2.5rem 3rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+        .footer-text { font-size: 0.78rem; color: var(--muted); }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes orbFloat { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(25px,-18px) scale(1.04); } 66% { transform: translate(-18px,12px) scale(0.97); } }
+        @keyframes scrollPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.9; } }
+        @media (max-width: 768px) {
+          nav { padding: 1.2rem 1.5rem; }
+          .nav-links .nav-link { display: none; }
+          .hero { padding: 8rem 1.5rem 5rem; }
+          .section-wrap { padding: 5rem 1.5rem; }
+          .steps-layout { grid-template-columns: 1fr; gap: 3rem; }
+          .about-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+          .about-avatar { max-width: 180px; margin: 0 auto; }
+          .divider { margin: 0 1.5rem; }
+          body { cursor: auto; }
+          .cursor, .cursor-ring { display: none; }
+          footer { padding: 2rem 1.5rem; flex-direction: column; text-align: center; }
+        }
       `}</style>
-      {progress > 0 && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, background: 'rgba(90,110,85,0.1)', zIndex: 100 }}>
-          <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--green), var(--terracotta))', width: `${progress}%`, transition: 'width 0.5s cubic-bezier(0.16,1,0.3,1)' }} />
+
+      <div className="cursor" style={{ left: cursorPos.x - 4, top: cursorPos.y - 4 }} />
+      <div className="cursor-ring" style={{ left: cursorPos.x - 17, top: cursorPos.y - 17 }} />
+
+      <nav>
+        <a href="/" className="logo">calf<span>.</span></a>
+        <div className="nav-links">
+          <a href="#burnout" className="nav-link">what is burnout</a>
+          <a href="#how" className="nav-link">how it works</a>
+          <a href="#about" className="nav-link">about</a>
+          <a href="/auth" className="nav-cta">get started</a>
         </div>
-      )}
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem' }}>
-        {children}
+      </nav>
+
+      <section className="hero">
+        <div className="orb orb1" />
+        <div className="orb orb2" />
+        <div className="orb orb3" />
+        <div className="hero-tag">🌿 burnout recovery for gen z students</div>
+        <h1 className="hero-headline">
+          you&apos;re not failing.<br />
+          you&apos;re <em>burnt out.</em><br />
+          <span className="soft">there&apos;s a difference.</span>
+        </h1>
+        <p className="hero-sub">
+          Calf is a quiet space to check in with yourself, understand what&apos;s actually going on, and find your way back — without the pressure to be okay right now.
+        </p>
+        <p className="mood-display">
+          right now you&apos;re probably feeling{" "}
+          <span className="mood-value">{moods[moodIdx]}</span>
+        </p>
+        <div className="hero-cta">
+          <a href="/auth" className="btn-main">take the assessment ↗</a>
+          <a href="#burnout" className="btn-ghost">learn more ↓</a>
+        </div>
+        <div className="scroll-hint">
+          <div className="scroll-line" />
+          <span>scroll</span>
+        </div>
+      </section>
+
+      <div className="divider" />
+
+      <section id="burnout">
+        <div className="section-wrap">
+          <FadeIn>
+            <div className="label-tag">understanding it</div>
+            <h2 className="section-title">burnout isn&apos;t just<br /><em>being tired.</em></h2>
+            <p className="section-body">
+              It&apos;s a specific kind of depletion — and it shows up differently for everyone. Recognizing which type you&apos;re dealing with is the first step to actually recovering.
+            </p>
+          </FadeIn>
+          <div className="cards-grid">
+            {burnoutTypes.map((b, i) => (
+              <BurnoutCard key={b.id} {...b} delay={i * 0.09} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="divider" />
+
+      <div className="quote-section">
+        <FadeIn>
+          <p className="quote-text">
+            &ldquo;Rest is not a <em>reward</em> for finishing everything.<br />
+            it&apos;s what makes finishing anything possible.&rdquo;
+          </p>
+          <p className="quote-attr">— something your body&apos;s been trying to tell you</p>
+        </FadeIn>
       </div>
+
+      <section id="how">
+        <div className="section-wrap">
+          <div className="steps-layout">
+            <div>
+              <FadeIn>
+                <div className="label-tag">the process</div>
+                <h2 className="section-title">simple.<br /><em>honest.</em><br />actually helpful.</h2>
+                <p className="section-body">
+                  No toxic positivity. No 47-step programs. Just a grounded check-in and a realistic path forward.
+                </p>
+              </FadeIn>
+            </div>
+            <div className="steps-list">
+              <StepItem num="01" title="Check in honestly" desc="8 questions that actually get at how you're doing — across exhaustion, detachment, and self-worth." delay={0} />
+              <StepItem num="02" title="See your breakdown" desc="A clear picture of your burnout type. No sugar-coating, no alarm bells either." delay={0.1} />
+              <StepItem num="03" title="Get a recovery plan" desc="Matched to your specific burnout pattern. Small, real steps — not a full life overhaul." delay={0.2} />
+              <StepItem num="04" title="Track over time" desc="Come back when you need to. Watch the numbers actually shift as you recover." delay={0.3} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="divider" />
+
+      <section id="about" className="about-section">
+        <div className="about-inner">
+          <FadeIn>
+            <div className="about-avatar">
+              <span>👨‍💻</span>
+              <span className="about-name-badge">Bhargava K S</span>
+            </div>
+          </FadeIn>
+          <FadeIn delay={0.12}>
+            <div className="label-tag">who built this</div>
+            <h2 className="about-title-text">built by a student,<br /><em>for students.</em></h2>
+            <p className="about-body">Hey, I&apos;m <strong>Bhargava K S</strong> — an ECE student, and yeah, I&apos;ve been cooked before.</p>
+            <p className="about-body">I built Calf because when I was burnt out, everything I found online felt designed for someone who already had their life together. Generic tips. Toxic positivity. Nothing that actually acknowledged how <strong>specific and heavy</strong> student burnout feels.</p>
+            <p className="about-body">Calf is my attempt to fix that — a no-BS tool that meets you where you are, helps you understand what&apos;s actually going on, and gives you a path forward that&apos;s doable alongside a full course load.</p>
+            <div className="about-tags">
+              {["ECE Student", "Built with Next.js", "Open to feedback", "Free always", "No fluff"].map(t => (
+                <span key={t} className="about-tag">{t}</span>
+              ))}
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      <section className="cta-section">
+        <div className="orb orb1" style={{ opacity: 0.5 }} />
+        <div className="orb orb2" style={{ opacity: 0.5 }} />
+        <FadeIn>
+          <div className="label-tag" style={{ justifyContent: "center" }}>when you&apos;re ready</div>
+          <h2 className="section-title" style={{ margin: "0.5rem auto 1rem", fontSize: "clamp(2.2rem,5vw,4rem)" }}>
+            it&apos;s okay to<br /><em>start small.</em>
+          </h2>
+          <p className="section-body" style={{ margin: "0 auto 2.5rem" }}>
+            Two minutes. Eight questions. A little more clarity about where you&apos;re at. That&apos;s all this is.
+          </p>
+          <a href="/auth" className="btn-main" style={{ fontSize: "1rem", padding: "1rem 2.5rem" }}>
+            begin your check-in ↗
+          </a>
+        </FadeIn>
+      </section>
+
+      <footer>
+        <a href="/" className="logo" style={{ fontSize: "1.2rem" }}>calf<span>.</span></a>
+        <span className="footer-text">a quiet space for burnt-out students</span>
+        <span className="footer-text">© 2025 calf — free, always</span>
+      </footer>
     </>
-  )
+  );
 }
