@@ -212,7 +212,7 @@ export default function Home() {
           <span className="mood-value">{moods[moodIdx]}</span>
         </p>
         <div className="hero-cta">
-          <a href="/auth" className="btn-main">take the assessment ↗</a>
+          <a href="/assessment" className="btn-main">take the assessment ↗</a>
           <a href="#burnout" className="btn-ghost">learn more ↓</a>
         </div>
         <div className="scroll-hint">
