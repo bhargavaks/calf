@@ -212,9 +212,11 @@ export default function Dashboard() {
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
   }))
 
-  const taskDays = new Set(
-    JSON.parse(localStorage.getItem(`calf_taskdays_${user?.id}`) || '[]') as string[]
-  )
+  const getTaskDays = () => {
+  if (typeof window === 'undefined') return new Set<string>()
+  return new Set<string>(JSON.parse(localStorage.getItem(`calf_taskdays_${user?.id}`) || '[]'))
+}
+const taskDays = getTaskDays()
 
   const markTaskDay = () => {
     if (!user) return
