@@ -190,7 +190,8 @@ export default function Home() {
           <a href="#burnout" className="nav-link">what is burnout</a>
           <a href="#how" className="nav-link">how it works</a>
           <a href="#about" className="nav-link">about</a>
-          <a href="/auth" className="nav-cta">get started</a>
+          <a href="/assessment" className="nav-link" style={{background:"rgba(74,138,90,0.08)", color:"var(--green)"}}>assessment</a>
+<a href="/auth" className="nav-cta">sign in</a>
         </div>
       </nav>
 
