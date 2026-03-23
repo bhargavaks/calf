@@ -19,7 +19,7 @@ export default function Auth() {
   const handleAuth = async () => {
     console.log('supabase:', !!supabase, process.env.NEXT_PUBLIC_SUPABASE_URL)
     if (!email || !password) { setMessage('Please enter your email and password.'); return }
-    if (!supabase) { setMessage('Connection error. Please refresh.'); return }
+    if (!supabase) { setMessage('Loading... please try again in a second.'); setTimeout(() => window.location.reload(), 1500); return }
     setLoading(true)
     setMessage('')
 
