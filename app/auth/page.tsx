@@ -1,7 +1,7 @@
 'use client'
-export const dynamic = 'force-dynamic'
+
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { getSupabase } from '../lib/supabase'
 
 export default function Auth() {
   const [email, setEmail] = useState('')
@@ -17,16 +17,12 @@ export default function Auth() {
     return () => window.removeEventListener('mousemove', move)
   }, [])
 
-  const handleAuth = async () => {
-    console.log('supabase:', !!supabase, process.env.NEXT_PUBLIC_SUPABASE_URL)
-    if (!email || !password) { setMessage('Please enter your email and password.'); return }
-    if (!supabase) { setMessage('Loading... please try again in a second.'); setTimeout(() => window.location.reload(), 1500); return }
-    setLoading(true)
-    setMessage('')
-
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Request timed out. Please try again.')), 10000)
-    )
+ const handleAuth = async () => {
+  const supabase = getSupabase()  // ← resolve lazily, at call time
+  console.log('supabase:', !!supabase, process.env.NEXT_PUBLIC_SUPABASE_URL)
+  if (!email || !password) { setMessage('Please enter your email and password.'); return }
+  if (!supabase) { setMessage('Connection error — please refresh the page.'); return }
+  // ... rest of your function stays exactly the same
 
     try {
       if (isLogin) {
