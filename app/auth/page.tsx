@@ -17,12 +17,17 @@ export default function Auth() {
     return () => window.removeEventListener('mousemove', move)
   }, [])
 
- const handleAuth = async () => {
-  const supabase = getSupabase()  // ← resolve lazily, at call time
-  console.log('supabase:', !!supabase, process.env.NEXT_PUBLIC_SUPABASE_URL)
-  if (!email || !password) { setMessage('Please enter your email and password.'); return }
-  if (!supabase) { setMessage('Connection error — please refresh the page.'); return }
-  // ... rest of your function stays exactly the same
+  const handleAuth = async () => {
+    const supabase = getSupabase()
+    console.log('supabase:', !!supabase, process.env.NEXT_PUBLIC_SUPABASE_URL)
+    if (!email || !password) { setMessage('Please enter your email and password.'); return }
+    if (!supabase) { setMessage('Connection error — please refresh the page.'); return }
+    setLoading(true)
+    setMessage('')
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Please try again.')), 10000)
+    )
 
     try {
       if (isLogin) {
