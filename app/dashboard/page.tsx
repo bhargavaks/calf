@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { getSupabase } from '../lib/supabase'
 
 const ANIMALS = [
   { id: 'panda',    emoji: '🐼', name: 'Panda' },
@@ -23,7 +23,6 @@ const ANIMALS = [
   { id: 'whale',    emoji: '🐳', name: 'Whale' },
   { id: 'elephant', emoji: '🐘', name: 'Elephant' },
   { id: 'lion',     emoji: '🦁', name: 'Lion' },
-  
 ]
 
 const PRESETS = [
@@ -124,12 +123,14 @@ export default function Dashboard() {
   const [journalSaved, setJournalSaved] = useState(false)
   const [greeting, setGreeting] = useState('')
   const [calMonth, setCalMonth] = useState(new Date())
+  const [taskDays, setTaskDays] = useState<Set<string>>(new Set()) // ← moved from module level
 
   const todayTasks = TASKS.slice(0, 5)
   const todayPrompt = JOURNAL_PROMPTS[new Date().getDay()]
 
   useEffect(() => {
     const init = async () => {
+      const supabase = getSupabase()
       if (!supabase) { window.location.href = '/auth'; return }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/auth'; return }
@@ -156,6 +157,10 @@ export default function Dashboard() {
       const jKey = `calf_journal_${user.id}_${new Date().toDateString()}`
       const savedJ = localStorage.getItem(jKey)
       if (savedJ) { setJournalText(savedJ); setJournalSaved(true) }
+
+      // ← load taskDays safely inside useEffect
+      const days = JSON.parse(localStorage.getItem(`calf_taskdays_${user.id}`) || '[]') as string[]
+      setTaskDays(new Set(days))
 
       setLoading(false)
     }
@@ -193,13 +198,13 @@ export default function Dashboard() {
   }
 
   const signOut = async () => {
+    const supabase = getSupabase()
     if (supabase) await supabase.auth.signOut()
     window.location.href = '/auth'
   }
 
   const pct = (s: number) => Math.round((s / 6) * 100)
 
-  // Calendar helpers
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
     const month = date.getMonth()
@@ -213,10 +218,6 @@ export default function Dashboard() {
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
   }))
 
-  const taskDays = new Set(
-    JSON.parse(localStorage.getItem(`calf_taskdays_${user?.id}`) || '[]') as string[]
-  )
-
   const markTaskDay = () => {
     if (!user) return
     const key = `calf_taskdays_${user.id}`
@@ -225,6 +226,7 @@ export default function Dashboard() {
     if (!days.includes(today)) {
       days.push(today)
       localStorage.setItem(key, JSON.stringify(days))
+      setTaskDays(new Set(days)) // ← keep state in sync
     }
   }
 
@@ -237,7 +239,6 @@ export default function Dashboard() {
     </div>
   )
 
-  // ── ONBOARDING ──
   if (onboarding) {
     const OT = buildTheme(obAccent, obDark)
     return (
@@ -261,14 +262,12 @@ export default function Dashboard() {
             </h1>
             <p style={{ fontSize: '0.88rem', color: `${OT.ink}60`, lineHeight: 1.7, marginBottom: 32 }}>Three quick things. Takes 30 seconds.</p>
 
-            {/* Name */}
             <div style={{ marginBottom: 28 }}>
               <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: `${OT.ink}60`, marginBottom: 8 }}>what should we call you?</label>
               <input value={obName} onChange={e => setObName(e.target.value)} placeholder="your name or nickname"
                 style={{ width: '100%', padding: '0.85rem 1rem', background: OT.card, border: `1.5px solid ${OT.accent}30`, borderRadius: 12, fontFamily: "'Syne',sans-serif", fontSize: '0.93rem', color: OT.ink, outline: 'none' }} />
             </div>
 
-            {/* Animal */}
             <div style={{ marginBottom: 28 }}>
               <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: `${OT.ink}60`, marginBottom: 10 }}>pick your spirit animal</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 6 }}>
@@ -281,7 +280,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Color */}
             <div style={{ marginBottom: 32 }}>
               <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: `${OT.ink}60`, marginBottom: 10 }}>pick your colour</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 8, marginBottom: 14 }}>
@@ -301,7 +299,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Dark mode toggle */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
               <label style={{ fontSize: '0.82rem', color: `${OT.ink}70` }}>dark mode</label>
               <button onClick={() => setObDark(!obDark)}
@@ -320,7 +317,6 @@ export default function Dashboard() {
     )
   }
 
-  // ── MAIN DASHBOARD ──
   const { firstDay, daysInMonth } = getDaysInMonth(calMonth)
   const monthName = calMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
@@ -347,20 +343,17 @@ export default function Dashboard() {
 
       <div style={{ display: 'flex', minHeight: '100vh' }}>
 
-        {/* SIDEBAR */}
         <div style={{ width: 220, flexShrink: 0, background: T.bg2, borderRight: `1px solid ${T.accent}15`, padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50, overflowY: 'auto' }}>
           <a href="/" style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.4rem', fontWeight: 700, fontStyle: 'italic', color: T.ink, textDecoration: 'none', marginBottom: 24, display: 'block', paddingLeft: 8 }}>
             calf<span style={{ color: T.accent }}>.</span>
           </a>
 
-          {/* Avatar */}
           <div style={{ textAlign: 'center', padding: '1rem', background: T.card, borderRadius: 16, marginBottom: 16, border: `1px solid ${T.accent}15` }}>
             <div style={{ fontSize: '2.8rem', marginBottom: 4 }}>{animal.emoji}</div>
             <div style={{ fontSize: '0.82rem', fontWeight: 600, color: T.ink }}>{displayName}</div>
             <div style={{ fontSize: '0.65rem', color: `${T.ink}50`, marginTop: 2 }}>day {streak} streak 🔥</div>
           </div>
 
-          {/* Plant */}
           <div style={{ textAlign: 'center', padding: '0.6rem', background: `${T.accent}10`, borderRadius: 12, marginBottom: 20, border: `1px solid ${T.accent}20` }}>
             <span style={{ fontSize: '1.6rem', animation: 'pulse 3s ease-in-out infinite', display: 'inline-block' }}>{plantEmojis[plantStage]}</span>
             <div style={{ fontSize: '0.62rem', color: T.accent, marginTop: 2 }}>stage {plantStage + 1}/5</div>
@@ -387,10 +380,8 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* MAIN */}
         <div style={{ marginLeft: 220, flex: 1, padding: '2.5rem', minHeight: '100vh', overflowY: 'auto' }}>
 
-          {/* HOME */}
           {section === 'home' && (
             <div style={{ animation: 'fadeUp 0.6s both' }}>
               <p style={{ fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.accent, marginBottom: 8 }}>
@@ -452,7 +443,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* RECOVERY */}
           {section === 'recovery' && (
             <div style={{ animation: 'fadeUp 0.6s both' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.accent, marginBottom: 8 }}>recovery plan</div>
@@ -487,7 +477,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* JOURNAL */}
           {section === 'journal' && (
             <div style={{ animation: 'fadeUp 0.6s both' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.accent, marginBottom: 8 }}>daily journal</div>
@@ -517,14 +506,12 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* CALENDAR */}
           {section === 'calendar' && (
             <div style={{ animation: 'fadeUp 0.6s both' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.accent, marginBottom: 8 }}>calendar</div>
               <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 700, letterSpacing: '-0.03em', color: T.ink, marginBottom: 24 }}>your recovery journey.</h2>
 
               <div className="card" style={{ maxWidth: 420 }}>
-                {/* Month nav */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                   <button onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1))}
                     style={{ background: 'transparent', border: `1px solid ${T.accent}25`, borderRadius: 8, padding: '0.4rem 0.8rem', cursor: 'pointer', color: T.ink, fontFamily: "'Syne',sans-serif", fontSize: '0.82rem' }}>←</button>
@@ -533,14 +520,12 @@ export default function Dashboard() {
                     style={{ background: 'transparent', border: `1px solid ${T.accent}25`, borderRadius: 8, padding: '0.4rem 0.8rem', cursor: 'pointer', color: T.ink, fontFamily: "'Syne',sans-serif", fontSize: '0.82rem' }}>→</button>
                 </div>
 
-                {/* Day labels */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 8 }}>
                   {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
                     <div key={d} style={{ textAlign: 'center', fontSize: '0.65rem', fontWeight: 600, color: `${T.ink}40`, letterSpacing: '0.05em' }}>{d}</div>
                   ))}
                 </div>
 
-                {/* Days */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
                   {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
                   {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -564,7 +549,6 @@ export default function Dashboard() {
                   })}
                 </div>
 
-                {/* Legend */}
                 <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.accent}15` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: `${T.ink}60` }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.accent, display: 'block' }} />tasks done
@@ -580,7 +564,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* HISTORY */}
           {section === 'history' && (
             <div style={{ animation: 'fadeUp 0.6s both' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.accent, marginBottom: 8 }}>history</div>
@@ -614,15 +597,12 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* SETTINGS */}
           {section === 'settings' && (
             <div style={{ animation: 'fadeUp 0.6s both' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.accent, marginBottom: 8 }}>settings</div>
               <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 700, letterSpacing: '-0.03em', color: T.ink, marginBottom: 24 }}>make it yours.</h2>
 
               <div style={{ maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-                {/* Name */}
                 <div className="card">
                   <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: `${T.ink}55`, marginBottom: 10 }}>display name</div>
                   <div style={{ display: 'flex', gap: 10 }}>
@@ -632,7 +612,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Animal */}
                 <div className="card">
                   <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: `${T.ink}55`, marginBottom: 10 }}>spirit animal</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10,1fr)', gap: 6 }}>
@@ -646,7 +625,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Color */}
                 <div className="card">
                   <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: `${T.ink}55`, marginBottom: 12 }}>accent colour</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8,1fr)', gap: 8, marginBottom: 14 }}>
@@ -667,7 +645,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Dark mode */}
                 <div className="card">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
@@ -681,13 +658,11 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Account */}
                 <div className="card">
                   <div style={{ fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: `${T.ink}55`, marginBottom: 8 }}>account</div>
                   <p style={{ fontSize: '0.83rem', color: `${T.ink}55`, marginBottom: 12 }}>{user?.email}</p>
                   <button onClick={signOut} style={{ padding: '0.65rem 1.3rem', background: 'transparent', border: `1px solid ${T.accent}30`, borderRadius: 100, cursor: 'pointer', color: `${T.ink}60`, fontSize: '0.8rem', fontFamily: "'Syne',sans-serif" }}>sign out</button>
                 </div>
-
               </div>
             </div>
           )}
