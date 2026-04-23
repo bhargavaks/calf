@@ -78,7 +78,11 @@ const mcqQuestions = [
     ]
   },
 ]
-
+const handleSave = async (email: string, password: string, isNew: boolean) => {
+  const supabase = getSupabase()   // ← this line
+  if (!supabase) { setSaveState('error'); return }
+  setSaveState('loading')
+  // ... rest stays the same
 const resultData: Record<string, { emoji: string; title: string; desc: string; color: string; accent: string }> = {
   stable: {
     emoji: '🌤️',
