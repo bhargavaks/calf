@@ -2,9 +2,212 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { getSupabase } from '@/lib/supabase'
-// then inside the function/useEffect:
-const supabase = getSupabase()
 
+// ── KEYWORD SCORING ──────────────────────────────────────────
+const BURNOUT_SIGNALS: Record<string, number> = {
+  tired: 2, exhausted: 3, drained: 3, empty: 3, numb: 3,
+  heavy: 2, flat: 2, dead: 2, hollow: 2, broken: 3,
+  collapse: 3, crash: 2, burnout: 3, burnt: 3, burned: 3,
+  overwhelmed: 3, drowning: 3, suffocating: 2, barely: 2,
+  anxious: 2, anxiety: 2, panic: 3, worry: 2, worried: 2,
+  overthink: 2, racing: 2, spiral: 2, stuck: 2, lost: 2,
+  fog: 2, foggy: 2, confused: 1, blank: 2, forget: 1,
+  failure: 3, worthless: 3, useless: 3, hate: 2,
+  disappoint: 2, disappointed: 2, shame: 2, ashamed: 2,
+  behind: 1, failing: 2, failed: 2, inadequate: 3,
+  anymore: 2, stopped: 2, miss: 2, missed: 2, forgot: 2, forgotten: 2,
+  cannot: 2, gave: 1,
+}
+
+const RECOVERY_SIGNALS: Record<string, number> = {
+  okay: -1, fine: -1, good: -1, well: -1, better: -1,
+  excited: -2, happy: -2, enjoy: -2, love: -1, passion: -2,
+  hope: -2, hopeful: -2, motivated: -2, energy: -2,
+  rested: -2, calm: -2, peaceful: -2, clear: -1, ready: -1,
+  grateful: -2, grounded: -2, balance: -1, balanced: -1,
+}
+
+function scoreOpenAnswers(answers: string[]) {
+  const dim = { exhaustion: 0, cognitive: 0, worth: 0, recovery: 0 }
+  answers.forEach((answer, idx) => {
+    const words = answer.toLowerCase().split(/\s+/)
+    let raw = 0
+    words.forEach(word => {
+      const clean = word.replace(/[^a-z']/g, '')
+      if (BURNOUT_SIGNALS[clean]) raw += BURNOUT_SIGNALS[clean]
+      if (RECOVERY_SIGNALS[clean]) raw += RECOVERY_SIGNALS[clean]
+    })
+    const len = answer.trim().length
+    if (len < 30) raw += 2
+    else if (len > 300) raw -= 1
+    const clamped = Math.max(0, Math.min(raw, 6))
+    if (idx === 0) dim.exhaustion += clamped
+    if (idx === 1) dim.recovery   += clamped
+    if (idx === 2) dim.cognitive  += clamped
+    if (idx === 3) dim.worth      += clamped
+  })
+  return dim
+}
+
+// ── RECOVERY PLAN ────────────────────────────────────────────
+type Week = { week: string; title: string; focus: string; tasks: string[]; why: string }
+
+function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
+  const highExhaustion = dim.exhaustion > 5
+  const highCognitive  = dim.cognitive  > 5
+  const highWorth      = dim.worth      > 5
+
+  const plans: Record<string, Week[]> = {
+    stable: [
+      {
+        week: 'Week 1', title: 'Protect what's working', focus: 'Maintenance',
+        tasks: [
+          'Identify one habit keeping you afloat — protect it deliberately',
+          'Sleep at the same time for 5 out of 7 nights',
+          'One meal a day eaten without a screen',
+        ],
+        why: "You're stable — the goal isn't fixing things, it's not letting small cracks widen.",
+      },
+      {
+        week: 'Week 2', title: 'One thing just for you', focus: 'Joy',
+        tasks: [
+          'Revisit something you used to enjoy for 20 minutes — no outcome expected',
+          'Walk somewhere new once this week',
+          'Tell one person how you actually are',
+        ],
+        why: "Stable doesn't mean thriving. This week is about feeding yourself, not just managing.",
+      },
+    ],
+    early: [
+      {
+        week: 'Week 1', title: 'Slow the leak', focus: highExhaustion ? 'Rest' : 'Clarity',
+        tasks: highExhaustion ? [
+          'Cut one non-essential commitment this week — just one',
+          'No screens for the first 20 minutes after waking',
+          'Sleep before midnight, 5 nights',
+        ] : [
+          'Write 3 lines each morning: what you're carrying, what can wait, what matters today',
+          'One 15-min walk without headphones',
+          'Say no to one thing this week without explaining yourself',
+        ],
+        why: "Early strain is the easiest to reverse — but only if you act before it compounds.",
+      },
+      {
+        week: 'Week 2', title: 'Find the edges', focus: 'Boundaries',
+        tasks: [
+          'Identify one thing that drains you every week — what would less of it look like?',
+          'Eat a real breakfast 4 out of 7 days',
+          highCognitive
+            ? 'Before bed: write down 3 things your brain is holding — then close the notebook'
+            : 'Turn off academic notifications after 9pm',
+        ],
+        why: "Burnout grows in the gaps between what we say yes to and what we actually have left to give.",
+      },
+      {
+        week: 'Week 3', title: 'Rebuild one good thing', focus: 'Recovery',
+        tasks: [
+          'One thing you gave up that you miss — give it 30 minutes, no pressure',
+          'Text someone you haven't spoken to in a while',
+          highWorth
+            ? 'Write down one thing you did well this week — doesn't have to be academic'
+            : 'Do something purely for fun, that produces nothing',
+        ],
+        why: "You're not rebuilding your life — just reconnecting with one small piece of who you were before this got heavy.",
+      },
+    ],
+    depleted: [
+      {
+        week: 'Week 1', title: 'Just survive, gently', focus: 'Rest',
+        tasks: [
+          'Remove one obligation that isn't load-bearing this week',
+          'Sleep first — alarms as late as you can afford them',
+          'Eat something warm once a day, even if it's small',
+          'No guilt about productivity this week — rest is the work',
+        ],
+        why: "You're running on fumes. The first step isn't doing more — it's stopping the drain.",
+      },
+      {
+        week: 'Week 2', title: 'One human connection', focus: 'Support',
+        tasks: [
+          'Tell one person you trust that you're not okay — you don't have to explain everything',
+          'Spend 30 minutes outside, even if you just sit there',
+          highCognitive
+            ? 'Brain dump before bed — everything in your head onto paper, then shut the book'
+            : 'Pick one thing to stop doing for the next 2 weeks',
+        ],
+        why: "Depletion grows in isolation. You don't need to fix anything — just let someone know where you are.",
+      },
+      {
+        week: 'Week 3', title: 'Stabilise one thing', focus: 'Structure',
+        tasks: [
+          'Pick one consistent wake time — just one anchor point',
+          'What's the one academic task causing most dread? Can any part be delayed or simplified?',
+          highWorth
+            ? 'Write: "Before college, I was someone who___" — just to remember'
+            : '20 minutes on something unrelated to your degree',
+        ],
+        why: "After rest and connection, structure helps. One anchor point creates stability without pressure.",
+      },
+      {
+        week: 'Week 4', title: 'Tiny forward motion', focus: 'Gentle momentum',
+        tasks: [
+          'One thing you've been avoiding — do just the first 5 minutes of it',
+          'Revisit something creative or physical you used to do',
+          'Notice: what does a slightly better day feel like? Write it down.',
+        ],
+        why: "You're not bouncing back — you're slowly rebuilding. Small wins compound.",
+      },
+    ],
+    severe: [
+      {
+        week: 'Week 1', title: 'Stop. Genuinely.', focus: 'Emergency rest',
+        tasks: [
+          'Cancel or defer everything non-essential — no apology needed',
+          'Sleep as much as your body asks for',
+          'Tell at least one person what's going on — a friend, a counsellor, anyone',
+          'Eat something. Drink water. That's enough for now.',
+        ],
+        why: "This level of exhaustion doesn't respond to willpower. Your only job this week is to stop depleting.",
+      },
+      {
+        week: 'Week 2', title: 'Find one anchor', focus: 'Safety',
+        tasks: [
+          'Contact your university's student support or counselling service',
+          'Identify one person who can check in on you — tell them',
+          'One thing outside today that isn't studying. 10 minutes is enough.',
+          highCognitive
+            ? 'Try box breathing before sleep: 4 in, 4 hold, 4 out, 4 hold'
+            : 'Write a list of things that are not your fault',
+        ],
+        why: "Severe burnout needs external support — not just self-management. Please don't carry this alone.",
+      },
+      {
+        week: 'Week 3', title: 'Reduce, don't optimise', focus: 'Triage',
+        tasks: [
+          'Triage your academic load: what is genuinely urgent vs what just feels urgent?',
+          'One meal cooked or ordered that you actually enjoy',
+          highWorth
+            ? 'Write: "I am more than my grades because___" — even if you don't believe it yet'
+            : 'Spend time with someone who makes you feel like yourself',
+        ],
+        why: "At this stage, the goal isn't performance — it's damage limitation and slow stabilisation.",
+      },
+      {
+        week: 'Week 4', title: 'One small thing back', focus: 'Reconstruction',
+        tasks: [
+          'One thing you used to love — give it 20 minutes, no outcome required',
+          'Set one boundary around academic work: a stop time, a no-phone zone, anything',
+          'Check in: are you sleeping more? Is food easier? Write what's shifted.',
+        ],
+        why: "Recovery from severe burnout takes months, not weeks. This isn't the finish line — it's the beginning of the return.",
+      },
+    ],
+  }
+
+  return plans[key] ?? plans.early
+}
+
+// ── QUESTIONS ────────────────────────────────────────────────
 const openQuestions = [
   {
     id: 1,
@@ -67,7 +270,7 @@ const mcqQuestions = [
     ]
   },
   {
-    id: 8, area: 'cognitive',
+    id: 8, area: 'exhaustion',
     text: "When you lie down at night, what does your mind do?",
     sub: "That space between being awake and asleep.",
     options: [
@@ -78,11 +281,8 @@ const mcqQuestions = [
     ]
   },
 ]
-const handleSave = async (email: string, password: string, isNew: boolean) => {
-  const supabase = getSupabase()   // ← this line
-  if (!supabase) { setSaveState('error'); return }
-  setSaveState('loading')
-  // ... rest stays the same
+
+// ── RESULT DATA ──────────────────────────────────────────────
 const resultData: Record<string, { emoji: string; title: string; desc: string; color: string; accent: string }> = {
   stable: {
     emoji: '🌤️',
@@ -110,6 +310,7 @@ const resultData: Record<string, { emoji: string; title: string; desc: string; c
   },
 }
 
+// ── MAIN COMPONENT ───────────────────────────────────────────
 export default function Assessment() {
   const [stage, setStage] = useState<'intro' | 'open' | 'transition' | 'mcq' | 'loading' | 'result' | 'save'>('intro')
   const [openIdx, setOpenIdx] = useState(0)
@@ -118,6 +319,7 @@ export default function Assessment() {
   const [mcqAnswers, setMcqAnswers] = useState<Record<number, number>>({})
   const [result, setResult] = useState<{ key: string; dim: Record<string, number> } | null>(null)
   const [saveState, setSaveState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [showTimetable, setShowTimetable] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -142,19 +344,39 @@ export default function Assessment() {
 
   const calculate = () => {
     setStage('loading')
-    const dim: Record<string, number> = { exhaustion: 0, cognitive: 0, worth: 0, recovery: 0 }
+    const dim = { exhaustion: 0, cognitive: 0, worth: 0, recovery: 0 }
+
+    // MCQ scores mapped to correct dimensions
     mcqQuestions.forEach((q, i) => {
-      if (mcqAnswers[i] !== undefined) dim[q.area] += q.options[mcqAnswers[i]].score
+      if (mcqAnswers[i] !== undefined) {
+        const score = q.options[mcqAnswers[i]].score
+        if (q.area === 'cognitive')  dim.cognitive  += score
+        if (q.area === 'worth')      dim.worth      += score
+        if (q.area === 'exhaustion') dim.exhaustion += score
+      }
     })
-    // Also factor in open answers length/tone as a rough signal
-    const openScore = openAnswers.reduce((acc, a) => acc + Math.min(a.length > 100 ? 1 : 0, 1), 0)
-    dim.recovery = Math.min(dim.recovery + openScore, 6)
-    const total = Math.round(((dim.exhaustion + dim.cognitive + dim.worth + dim.recovery) / 24) * 100)
-    const key = total <= 20 ? 'stable' : total <= 42 ? 'early' : total <= 67 ? 'depleted' : 'severe'
+
+    // Open answer keyword scores
+    const openDim = scoreOpenAnswers(openAnswers)
+    dim.exhaustion = Math.min(dim.exhaustion + openDim.exhaustion, 9)
+    dim.cognitive  = Math.min(dim.cognitive  + openDim.cognitive,  9)
+    dim.worth      = Math.min(dim.worth      + openDim.worth,      9)
+    dim.recovery   = Math.min(openDim.recovery, 9)
+
+    // Score out of 36 total (4 dims × max 9)
+    const total = Math.round(
+      ((dim.exhaustion + dim.cognitive + dim.worth + dim.recovery) / 36) * 100
+    )
+    const key = total <= 20 ? 'stable'
+               : total <= 42 ? 'early'
+               : total <= 67 ? 'depleted'
+               : 'severe'
+
     setTimeout(() => { setResult({ key, dim }); setStage('result') }, 2000)
   }
 
   const handleSave = async (email: string, password: string, isNew: boolean) => {
+    const supabase = getSupabase()
     if (!supabase) { setSaveState('error'); return }
     setSaveState('loading')
     try {
@@ -187,7 +409,7 @@ export default function Assessment() {
     }
   }
 
-  const pct = (score: number) => Math.round((score / 6) * 100)
+  const pct = (score: number) => Math.round((score / 9) * 100)
   const totalProgress = stage === 'open'
     ? ((openIdx + 1) / 8) * 100
     : stage === 'mcq' ? ((4 + mcqIdx + 1) / 8) * 100 : 0
@@ -228,14 +450,12 @@ export default function Assessment() {
               in your words
             </span>
           </div>
-
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)', fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.02em', color: 'var(--ink)', marginBottom: 10 }}>
             {q.text}
           </h2>
           <p style={{ fontSize: '0.88rem', color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.7, marginBottom: 28 }}>
             {q.sub}
           </p>
-
           <textarea
             ref={textareaRef}
             value={val}
@@ -262,7 +482,6 @@ export default function Assessment() {
           <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: 36, opacity: 0.6 }}>
             {val.length > 0 ? `${val.length} characters` : 'press ⌘ + Enter to continue'}
           </p>
-
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button onClick={prevOpen} disabled={openIdx === 0}
               style={{ padding: '0.75rem 1.5rem', background: 'transparent', border: '1px solid rgba(90,110,85,0.18)', borderRadius: 100, cursor: openIdx === 0 ? 'default' : 'pointer', color: 'var(--muted)', fontSize: '0.86rem', opacity: openIdx === 0 ? 0.4 : 1, fontFamily: "'Syne', sans-serif" }}>
@@ -294,7 +513,7 @@ export default function Assessment() {
     </Page>
   )
 
-  // ── MCQ QUESTIONS ──
+  // ── MCQ ──
   if (stage === 'mcq') {
     const q = mcqQuestions[mcqIdx]
     return (
@@ -308,14 +527,12 @@ export default function Assessment() {
               deeper dive
             </span>
           </div>
-
           <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)', fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.02em', color: 'var(--ink)', marginBottom: 10 }}>
             {q.text}
           </h2>
           <p style={{ fontSize: '0.88rem', color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.7, marginBottom: 36 }}>
             {q.sub}
           </p>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 48 }}>
             {q.options.map((opt, i) => {
               const selected = mcqAnswers[mcqIdx] === i
@@ -338,7 +555,6 @@ export default function Assessment() {
               )
             })}
           </div>
-
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button onClick={prevMcq} disabled={mcqIdx === 0}
               style={{ padding: '0.75rem 1.5rem', background: 'transparent', border: '1px solid rgba(90,110,85,0.18)', borderRadius: 100, cursor: mcqIdx === 0 ? 'default' : 'pointer', color: 'var(--muted)', fontSize: '0.86rem', opacity: mcqIdx === 0 ? 0.4 : 1, fontFamily: "'Syne', sans-serif" }}>
@@ -369,9 +585,13 @@ export default function Assessment() {
   // ── RESULT ──
   if (stage === 'result' && result) {
     const r = resultData[result.key]
+    const plan = getRecoveryPlan(result.key, result.dim)
+
     return (
       <Page progress={100}>
         <div style={{ maxWidth: 660, margin: '0 auto', animation: 'fadeUp 0.8s both' }}>
+
+          {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <span style={{ fontSize: '3rem', display: 'block', marginBottom: 20 }}>{r.emoji}</span>
             <div style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: r.color, background: r.accent, border: `1px solid ${r.color}33`, borderRadius: 100, padding: '0.3rem 0.9rem', marginBottom: 16 }}>
@@ -385,26 +605,98 @@ export default function Assessment() {
             </p>
           </div>
 
+          {/* Burnout breakdown */}
           <div style={{ background: '#FFFFFF', borderRadius: 24, padding: '2rem', marginBottom: 24, border: '1px solid rgba(90,110,85,0.1)', boxShadow: '0 2px 16px rgba(80,90,70,0.06)' }}>
             <p style={{ fontFamily: "'Playfair Display', serif", fontStyle: 'italic', color: 'var(--ink)', marginBottom: 24, fontSize: '1.05rem' }}>your burnout breakdown</p>
-            {[
-              ['Exhaustion', result.dim.exhaustion, '#B5654A'],
-              ['Mental Fatigue', result.dim.cognitive, '#7A9E5A'],
-              ['Self-Worth', result.dim.worth, '#7A6EAA'],
-              ['Recovery Capacity', result.dim.recovery, '#4A8A5A'],
-            ].map(([label, score, color]) => (
-              <div key={label as string} style={{ marginBottom: 18 }}>
+            {([
+              ['Exhaustion',        result.dim.exhaustion, '#B5654A'],
+              ['Mental Fatigue',    result.dim.cognitive,  '#7A9E5A'],
+              ['Self-Worth',        result.dim.worth,      '#7A6EAA'],
+              ['Recovery Capacity', result.dim.recovery,   '#4A8A5A'],
+            ] as [string, number, string][]).map(([label, score, color]) => (
+              <div key={label} style={{ marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--muted)', marginBottom: 7 }}>
-                  <span>{label as string}</span>
-                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{pct(score as number)}%</span>
+                  <span>{label}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{pct(score)}%</span>
                 </div>
                 <div style={{ height: 6, background: 'rgba(90,110,85,0.1)', borderRadius: 100, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct(score as number)}%`, background: color as string, borderRadius: 100, transition: 'width 1s cubic-bezier(0.16,1,0.3,1)' }} />
+                  <div style={{ height: '100%', width: `${pct(score)}%`, background: color, borderRadius: 100, transition: 'width 1s cubic-bezier(0.16,1,0.3,1)' }} />
                 </div>
               </div>
             ))}
           </div>
 
+          {/* Recovery Timetable */}
+          <div style={{ marginBottom: 24 }}>
+            <button
+              onClick={() => setShowTimetable(!showTimetable)}
+              style={{
+                width: '100%', padding: '1.1rem 1.6rem',
+                background: showTimetable ? 'var(--ink)' : '#FFFFFF',
+                color: showTimetable ? 'var(--bg)' : 'var(--ink)',
+                border: '1.5px solid rgba(90,110,85,0.15)',
+                borderRadius: 20, cursor: 'pointer',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1rem', fontStyle: 'italic',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                transition: 'all 0.25s',
+              }}
+            >
+              <span>your recovery timetable</span>
+              <span style={{ fontSize: '0.8rem', fontStyle: 'normal', fontFamily: "'Syne', sans-serif", opacity: 0.6 }}>
+                {showTimetable ? '↑ hide' : '↓ show'}
+              </span>
+            </button>
+
+            {showTimetable && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp 0.4s both' }}>
+                {plan.map((week, i) => (
+                  <div key={i} style={{
+                    background: '#FFFFFF',
+                    border: '1px solid rgba(90,110,85,0.1)',
+                    borderRadius: 20,
+                    padding: '1.5rem 1.8rem',
+                    boxShadow: '0 2px 12px rgba(80,90,70,0.04)',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: r.color, display: 'block', marginBottom: 4 }}>
+                          {week.week}
+                        </span>
+                        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.05rem', fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2 }}>
+                          {week.title}
+                        </p>
+                      </div>
+                      <span style={{
+                        fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', color: r.color,
+                        background: r.accent, border: `1px solid ${r.color}33`,
+                        borderRadius: 100, padding: '0.25rem 0.75rem',
+                        whiteSpace: 'nowrap', marginLeft: 12,
+                      }}>
+                        {week.focus}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                      {week.tasks.map((task, j) => (
+                        <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                          <span style={{ color: r.color, fontSize: '0.75rem', marginTop: 3, flexShrink: 0 }}>◆</span>
+                          <p style={{ fontSize: '0.88rem', color: 'var(--ink)', lineHeight: 1.6 }}>{task}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p style={{ fontSize: '0.8rem', color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.65, borderTop: '1px solid rgba(90,110,85,0.08)', paddingTop: 12 }}>
+                      {week.why}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Save CTA */}
           <div style={{ background: 'rgba(74,138,90,0.05)', border: '1px solid rgba(74,138,90,0.15)', borderRadius: 20, padding: '1.5rem 2rem', marginBottom: 24, textAlign: 'center' }}>
             <p style={{ fontSize: '0.9rem', color: 'var(--ink)', fontWeight: 600, marginBottom: 6 }}>Want to track your recovery over time?</p>
             <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginBottom: 20 }}>Save your results to see how you improve. Free, always.</p>
@@ -417,6 +709,7 @@ export default function Assessment() {
               </a>
             </div>
           </div>
+
         </div>
       </Page>
     )
@@ -428,6 +721,7 @@ export default function Assessment() {
   return null
 }
 
+// ── HELPERS ──────────────────────────────────────────────────
 function Btn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   const [hovered, setHovered] = useState(false)
   return (
