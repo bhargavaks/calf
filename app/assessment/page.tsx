@@ -187,7 +187,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
           'Triage your academic load: what is genuinely urgent vs what just feels urgent?',
           'One meal cooked or ordered that you actually enjoy',
           highWorth
-            ? 'Write: "I am more than my grades because___" — even if you don't believe it yet'
+            ? "Write: \"I am more than my grades because___\" — even if you don't believe it yet"
             : 'Spend time with someone who makes you feel like yourself',
         ],
         why: "At this stage, the goal isn't performance — it's damage limitation and slow stabilisation.",
