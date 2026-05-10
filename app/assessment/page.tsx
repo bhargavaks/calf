@@ -60,7 +60,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
   const plans: Record<string, Week[]> = {
     stable: [
       {
-        week: 'Week 1', title: 'Protect what's working', focus: 'Maintenance',
+        week: 'Week 1', title: "Protect what's working", focus: 'Maintenance',
         tasks: [
           'Identify one habit keeping you afloat — protect it deliberately',
           'Sleep at the same time for 5 out of 7 nights',
@@ -75,7 +75,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
           'Walk somewhere new once this week',
           'Tell one person how you actually are',
         ],
-        why: "Stable doesn't mean thriving. This week is about feeding yourself, not just managing.",
+        why: "Stable does not mean thriving. This week is about feeding yourself, not just managing.",
       },
     ],
     early: [
@@ -86,7 +86,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
           'No screens for the first 20 minutes after waking',
           'Sleep before midnight, 5 nights',
         ] : [
-          'Write 3 lines each morning: what you're carrying, what can wait, what matters today',
+          "Write 3 lines each morning: what you're carrying, what can wait, what matters today",
           'One 15-min walk without headphones',
           'Say no to one thing this week without explaining yourself',
         ],
@@ -107,9 +107,9 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
         week: 'Week 3', title: 'Rebuild one good thing', focus: 'Recovery',
         tasks: [
           'One thing you gave up that you miss — give it 30 minutes, no pressure',
-          'Text someone you haven't spoken to in a while',
+          "Text someone you haven't spoken to in a while",
           highWorth
-            ? 'Write down one thing you did well this week — doesn't have to be academic'
+            ? "Write down one thing you did well this week — doesn't have to be academic"
             : 'Do something purely for fun, that produces nothing',
         ],
         why: "You're not rebuilding your life — just reconnecting with one small piece of who you were before this got heavy.",
@@ -119,9 +119,9 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
       {
         week: 'Week 1', title: 'Just survive, gently', focus: 'Rest',
         tasks: [
-          'Remove one obligation that isn't load-bearing this week',
+          "Remove one obligation that isn't load-bearing this week",
           'Sleep first — alarms as late as you can afford them',
-          'Eat something warm once a day, even if it's small',
+          "Eat something warm once a day, even if it's small",
           'No guilt about productivity this week — rest is the work',
         ],
         why: "You're running on fumes. The first step isn't doing more — it's stopping the drain.",
@@ -129,7 +129,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
       {
         week: 'Week 2', title: 'One human connection', focus: 'Support',
         tasks: [
-          'Tell one person you trust that you're not okay — you don't have to explain everything',
+          "Tell one person you trust that you're not okay — you don't have to explain everything",
           'Spend 30 minutes outside, even if you just sit there',
           highCognitive
             ? 'Brain dump before bed — everything in your head onto paper, then shut the book'
@@ -141,7 +141,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
         week: 'Week 3', title: 'Stabilise one thing', focus: 'Structure',
         tasks: [
           'Pick one consistent wake time — just one anchor point',
-          'What's the one academic task causing most dread? Can any part be delayed or simplified?',
+          "What's the one academic task causing most dread? Can any part be delayed or simplified?",
           highWorth
             ? 'Write: "Before college, I was someone who___" — just to remember'
             : '20 minutes on something unrelated to your degree',
@@ -151,7 +151,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
       {
         week: 'Week 4', title: 'Tiny forward motion', focus: 'Gentle momentum',
         tasks: [
-          'One thing you've been avoiding — do just the first 5 minutes of it',
+          "One thing you've been avoiding — do just the first 5 minutes of it",
           'Revisit something creative or physical you used to do',
           'Notice: what does a slightly better day feel like? Write it down.',
         ],
@@ -164,17 +164,17 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
         tasks: [
           'Cancel or defer everything non-essential — no apology needed',
           'Sleep as much as your body asks for',
-          'Tell at least one person what's going on — a friend, a counsellor, anyone',
-          'Eat something. Drink water. That's enough for now.',
+          "Tell at least one person what's going on — a friend, a counsellor, anyone",
+          "Eat something. Drink water. That's enough for now.",
         ],
         why: "This level of exhaustion doesn't respond to willpower. Your only job this week is to stop depleting.",
       },
       {
         week: 'Week 2', title: 'Find one anchor', focus: 'Safety',
         tasks: [
-          'Contact your university's student support or counselling service',
+          "Contact your university's student support or counselling service",
           'Identify one person who can check in on you — tell them',
-          'One thing outside today that isn't studying. 10 minutes is enough.',
+          "One thing outside today that isn't studying. 10 minutes is enough.",
           highCognitive
             ? 'Try box breathing before sleep: 4 in, 4 hold, 4 out, 4 hold'
             : 'Write a list of things that are not your fault',
@@ -182,7 +182,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
         why: "Severe burnout needs external support — not just self-management. Please don't carry this alone.",
       },
       {
-        week: 'Week 3', title: 'Reduce, don't optimise', focus: 'Triage',
+        week: 'Week 3', title: "Reduce, don't optimise", focus: 'Triage',
         tasks: [
           'Triage your academic load: what is genuinely urgent vs what just feels urgent?',
           'One meal cooked or ordered that you actually enjoy',
@@ -197,7 +197,7 @@ function getRecoveryPlan(key: string, dim: Record<string, number>): Week[] {
         tasks: [
           'One thing you used to love — give it 20 minutes, no outcome required',
           'Set one boundary around academic work: a stop time, a no-phone zone, anything',
-          'Check in: are you sleeping more? Is food easier? Write what's shifted.',
+          "Check in: are you sleeping more? Is food easier? Write what's shifted.",
         ],
         why: "Recovery from severe burnout takes months, not weeks. This isn't the finish line — it's the beginning of the return.",
       },
