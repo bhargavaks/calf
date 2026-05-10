@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { getSupabase } from '@/lib/supabase'
+import { getSupabase } from '@/app/lib/supabase'
 
 // ── KEYWORD SCORING ──────────────────────────────────────────
 const BURNOUT_SIGNALS: Record<string, number> = {
