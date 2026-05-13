@@ -475,7 +475,7 @@ export default function Dashboard() {
               theme={theme}
               done={false}
               journalValue={journalInputs[task.id] || ''}
-              onJournalChange={(val) => {
+              onJournalChange={(val: string) => {
                 setJournalInputs(prev => ({ ...prev, [task.id]: val }))
                 if (journalErrors[task.id]) {
                   setJournalErrors(prev => ({ ...prev, [task.id]: false }))
