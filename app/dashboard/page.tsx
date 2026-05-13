@@ -9,6 +9,19 @@ const ANIMALS = [
   { id: 'dog', emoji: '🐶', name: 'Dog' },
   { id: 'bunny', emoji: '🐰', name: 'Bunny' },
   { id: 'bear', emoji: '🐻', name: 'Bear' },
+  { id: 'horse', emoji: '🐴', name: 'Horse' },
+  { id: 'cow', emoji: '🐮', name: 'Cow' },
+  { id: 'pig', emoji: '🐷', name: 'Pig' },
+  { id: 'sheep', emoji: '🐑', name: 'Sheep' },
+  { id: 'chicken', emoji: '🐔', name: 'Chicken' },
+  { id: 'duck', emoji: '🦆', name: 'Duck' },
+  { id: 'owl', emoji: '🦉', name: 'Owl' },
+  { id: 'eagle', emoji: '🦅', name: 'Eagle' },
+  { id: 'lion', emoji: '🦁', name: 'Lion' },
+  { id: 'tiger', emoji: '🐯', name: 'Tiger' },
+  { id: 'elephant', emoji: '🐘', name: 'Elephant' },
+  { id: 'monkey', emoji: '🐵', name: 'Monkey' },
+  { id: 'koala', emoji: '🐨', name: 'Koala' },
 ]
 
 const THEMES = [
@@ -297,7 +310,34 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Streak display */}
+        {/* Navigation */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <a href="/recovery" style={{
+            color: theme.text,
+            textDecoration: 'none',
+            fontSize: '14px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: theme.taskBg,
+            border: `1px solid ${theme.border}`,
+            transition: 'all 0.2s ease',
+          }} onMouseEnter={(e) => e.currentTarget.style.background = theme.accent} onMouseLeave={(e) => e.currentTarget.style.background = theme.taskBg}>
+            Recovery Guide
+          </a>
+          <a href="/journal" style={{
+            color: theme.text,
+            textDecoration: 'none',
+            fontSize: '14px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: theme.taskBg,
+            border: `1px solid ${theme.border}`,
+            transition: 'all 0.2s ease',
+          }} onMouseEnter={(e) => e.currentTarget.style.background = theme.accent} onMouseLeave={(e) => e.currentTarget.style.background = theme.taskBg}>
+            My Journal
+          </a>
+
+          {/* Streak display */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '20px'
         }}>
